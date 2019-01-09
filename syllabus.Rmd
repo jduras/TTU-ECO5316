@@ -1,0 +1,164 @@
+---
+citecolor: cyan
+fontsize: 11pt
+geometry: margin=0.85in
+linkcolor: magenta
+urlcolor: magenta
+output: pdf_document
+---
+
+\renewcommand{\baselinestretch}{1.1} \selectfont
+ \begin{center}
+    {\Large
+    Eco 5316: Time Series Econometrics  \\ \medskip
+    Texas Tech University \\
+    Spring 2019} \\
+    \bigskip\bigskip
+    {\bf \Large Syllabus}
+\end{center} \bigskip
+
+Lectures: MWF 9:00 a.m. - 9:50 a.m., 00226 Holden Hall  
+Website: http://myweb.ttu.edu/jduras/eco5316.html
+\medskip
+
+\begin{tabular*}{0.9\textwidth}%
+    {@{\extracolsep{\fill}}ll}
+    Instructor: Jan Duras   \\
+    Office: 257 Holden Hall   \\
+    E-mail: \href{mailto:jan.duras@ttu.edu}{jan.duras@ttu.edu} \\
+    Office Hours: T 4 p.m. - 6 p.m. and by appointment \\
+\end{tabular*}
+\medskip
+
+<!--
+----------------------------------------                    ----------------------------------------
+Instructor: Jan Duras                                       \hspace{7cm} Teaching Assistant: TBA
+Office: 257 Holden Hall                                     \hspace{7cm} Office: TBA
+E-mail: \href{mailto:jan.duras@ttu.edu}{jan.duras@ttu.edu}  \hspace{7cm} E-mail:TBA
+Office Hours: TBA                                           \hspace{7cm} Office Hours: TBA
+----------------------------------------                    ----------------------------------------
+-->
+
+Please check emails daily for announcements; when sending an email start subject with **Eco 5316**.
+\bigskip
+
+
+**TEXTBOOK**
+
+Enders, W. [Applied Econometric Time Series](http://www.wiley.com/WileyCDA/WileyTitle/productCd-EHEP003218.html), Fourth Edition, Wiley, 2014.  
+Tsay, R. S. [Analysis of Financial Time Series](http://www.wiley.com/WileyCDA/WileyTitle/productCd-EHEP002380.html), Third Edition, Wiley, 2010.
+\bigskip
+
+
+**PREREQUISITES**
+
+ ECO 5314 or ISQS 5349 or AAEC 5307 or instructor consent. Knowledge of R is an advantage but is not required; we will use [DataCamp](http://www.datacamp.com) to learn R quickly and efficiently.
+\bigskip
+
+
+**COURSE DESCRIPTION**
+
+The objective of this course is to provide an introduction to time series methods. We will cover relevant theory but the main goal is to learn how to apply these methods to univariate and multivariate time series models in macroeconomics and finance. We will discuss in class how to implement different methods in practice in R, and students should also expect to spend considerable amount of time outside of class working on assignments in R.
+\bigskip
+
+
+**ASSIGNMENTS**
+
+Each assignment has same weight on overall grade. Assignments submitted after the deadline will be penalized by five percent for each day it is late. 
+
+<!--
+unless a bailout is requested. Each student is allowed to use the bailout on any homework, but the total amount for the whole semester is limited to three days. \medskip
+-->
+
+Students are encouraged to work in study groups, but each student is responsible for writing up own solution and needs to acknowledge people he/she worked with on the assignment.
+
+
+\newpage
+
+
+**COURSE OUTLINE**
+
+This is a tentative outline for the course - details and timing are subject to change.
+
+------   ----------------------------------------------------------------------------
+Week  1  **Introduction**
+         -
+Week  2  **Autoregressive (AR) and Moving Average (MA) models**
+         E: chapter 2, T: chapter 2
+Week  3  **Autoregressive Moving-Average (ARMA) models. Seasonal Models.**
+         E: chapter 2, T: chapter 2
+Week  4  **Forecasting**
+         -
+Week  5  **Nonstationarity, Unit Root Tests (ADF, KPSS, PP, ERS)**
+         E: chapter 4, T: chapter 2
+Week  6  **Innovation Analysis. Autoregressive Distributed Lag Model (ARDL)**
+         E: chapter 5
+Week  7  **Conditional Heteroscedastic Models (ARCH, GARCH)**
+         T: chapter 3
+Week  8  **Value at Risk (VaR)**
+         T: chapter 3
+Week  9  **Spring Break**
+         -
+Week 10  **Vector Autoregressive Models (VAR)**
+         E: chapter 5, T: chapter 8
+Week 11  **Structural VAR Models (SVAR)**
+         E: chapter 5, T: chapter 8
+Week 12  **Cointegration, Vector Error Correction Models (VECM)**
+         E: chapter 6, T: chapter 8
+Week 13  **State Space Models. Kalman Filter.**
+         T: chapter 11
+Week 14  **State Space Models. Kalman Filter.**
+         T: chapter 11
+Week 15  **Nonlinear models (SETAR, STAR, MS)**
+         E: chapter 7, T: chapter 4
+Week 16  **Multivariate Conditional Heretostecasticity Model (BEKK)**
+         T: chapter 10
+------   ----------------------------------------------------------------------------
+
+\newpage
+
+
+\begin{center}
+{\bf PROCEDURES AND POLICIES}
+\end{center}
+
+**STUDENT HANDBOOK**
+
+Texas Tech University Student Handbook can be found at [http://www.depts.ttu.edu/dos/handbook/]([http://www.depts.ttu.edu/dos/handbook/])
+
+<!--
+**MAKE-UP EXAMS**
+
+Make-up exams are allowed only with a valid, official and acceptable university excuse. Please contact me as early as possible if you realize that you will miss an exam. For more information on make-up exams please visit:
+[http://www.depts.ttu.edu/testing/makeup\_exams.php](www.depts.ttu.edu/testing/makeup\_exams.php)
+-->
+
+**SPECIAL ACCOMMODATIONS**
+
+Students who may need special arrangements to complete the course requirements should contact me as soon as possible to request the necessary accommodations. You are required to present any appropriate verification from the Student Disability Services [http://www.depts.ttu.edu/students/sds/](https://www.depts.ttu.edu/students/sds/). All requests are confidential.
+
+
+**RELIGIOUS HOLY DAYS**
+
+Religious holy day means a holy day observed by a religion whose places of worship are exempt from property taxation under Texas Tax Code Section 11.20. Student who intends to observe a religious holy day should inform the instructor in writing prior to the absence. An excused student absent from classes for the observance of a religious holy day is not going to be penalized for the absence and will be allowed to take an examination or complete an assignment scheduled for that day within a reasonable time after the absence. See Texas Tech University Operating Policy 34.19.
+[http://www.depts.ttu.edu/opmanual/OP34.19.pdf](https://www.depts.ttu.edu/opmanual/OP34.19.pdf)
+
+
+**ACADEMIC INTEGRITY**
+
+Academic integrity is taking responsibility for one's own work, being individually accountable, and demonstrating intellectual honesty and ethical behavior. Academic dishonesty will not be tolerated in any form and will result in disciplinary action. Texas Tech University Code of Student Conduct defines scholastic dishonesty as cheating, plagiarism, collusion, falsifying academic records, misrepresenting facts, violations of published professional ethics/standards, and any act or attempted act designed to give unfair academic advantage to oneself or another student. See
+[http://www.depts.ttu.edu/studentconduct/academicinteg.php](http://www.depts.ttu.edu/studentconduct/academicinteg.php) for further discussion of issues related to Academic Integrity; for more
+information on Code of Student Conduct visit
+[http://www.depts.ttu.edu/dos/handbook/conduct.php](http://www.depts.ttu.edu/dos/handbook/conduct.php)
+
+
+**STUDENT CONDUCT AND CLASSROOM BEHAVIOR:**
+
+Students are expected to contribute to a calm, productive, and learning environment. Please check this website for information on student classroom behavior issues [http://www.depts.ttu.edu/dos/handbook/conduct.php](http://www.depts.ttu.edu/dos/handbook/conduct.php)
+
+
+**COMPLAINTS OR CONCERNS:**
+
+Please contact your instructor if you have any complaints/concerns about the course. If your concerns are not resolved after talking with your instructor, you can contact: Professor Klaus Becker, Chair of the Department of Economics, 248 Holden Hall, 806-834-7275, [klaus.becker@ttu.edu](mailto:klaus.becker@ttu.edu)
+
+
