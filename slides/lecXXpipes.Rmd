@@ -1,0 +1,220 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Pipes
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex 
+    fonttheme: professionalfonts
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+---
+
+
+
+```{r echo=FALSE}
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before)
+    return(options$size)
+})
+```
+
+```{r setup, include=FALSE}
+options(width=80)
+knitr::opts_chunk$set(echo = TRUE,  mysize=TRUE, size='\\small')
+```
+
+## Introduction
+
+- pipe operator `%>%` comes from `magrittr` package, see [cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html](https://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html)
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, height=1in]{figures/magrittr.jpg}
+\end{figure}
+
+- [https://en.wikipedia.org/wiki/The_Treachery_of_Images](https://en.wikipedia.org/wiki/The_Treachery_of_Images)
+
+- they help write code that is easier to read and understand
+
+- in particular, pipes are useful for clearly expressing a sequence of operations
+
+- see [http://r4ds.had.co.nz/pipes.html](http://r4ds.had.co.nz/pipes.html) for more details
+
+
+
+## Introduction
+
+- a sequence of operations can be carried out in several ways
+
+- you can
+
+    1. save each intermediate step as a new object
+    2. overwrite the original object over and over
+    3. compose functions
+    4. use the pipe
+
+
+## Example
+
+- how to get a Ph.D. in 5 easy steps
+
+- consider functions
+
+    - `take_courses()`
+    - `pass_comps()`
+    - `write_papers()`
+    - `defend()`
+    - `celebrate()`
+
+
+## Save Intermediate Steps
+
+- how to get a Ph.D.
+    ```{r, eval = FALSE}
+    you1 <- take_courses(you, n = 20)
+    you2 <- pass_comps(you1, max.attempts = 2) 
+    you3 <- write_papers(you2, n = 3) 
+    you4 <- defend(you3, committee = c("the good", "the bad", "the ugly")) 
+    you5 <- celebrate(you4, how.long = "until 3am")
+    ```
+    
+    \normalsize
+
+- downside: forces you to name intermediate elements
+
+- good idea if there are natural names and we want to inspect and further use the intermediate elements
+
+- often there aren't natural names and code becomes cluttered with unintuitive names
+
+
+
+## Overwrite the Original
+
+- how to get a Ph.D.
+    ```{r, eval = FALSE}
+    you <- take_courses(you, n = 20)
+    you <- pass_comps(you, max.attempts = 2) 
+    you <- write_papers(you, n = 3) 
+    you <- defend(you, committee = c("the good", "the bad", "the ugly")) 
+    you <- celebrate(you, how.long = "until 3am")
+    ```
+     
+     \normalsize
+
+- downsides: if you make a mistake you'll need to re-run the sequence from the beginning, results for intermediate steps are not available
+
+
+
+## Function Composition
+
+- how to get a Ph.D.
+    ```{r, eval = FALSE}
+    celebrate(
+        defend(
+            write_papers(
+                pass_comps(
+                    take_courses(you, n = 20), 
+                    max.attempts = 2),
+                n = 3), 
+            committee = c("the good","the bad","the ugly")), 
+        how.long = "until 3am")
+    ```
+    
+    \normalsize
+
+- big disadvantage: hard to see whats going on since
+    (1) you have to read from inside-out,  
+    (2) function arguments are  spread far apart from the function itself
+
+
+
+## Use the Pipe
+
+- how to get a Ph.D.
+    ```{r, eval=FALSE}
+    you %>%
+        take_courses(n = 20) %>%
+        pass_comps(max.attempts = 2) %>%
+        write_papers(n = 3) %>%
+        defend(committee = c("the good","the bad","the ugly")) %>%
+        celebrate(how.long = "until 3am")
+    ```
+    
+    \normalsize
+
+- big advantage: easy to follow and understand 
+
+
+
+## When Not to Use the Pipe
+
+- pipes are powerful but don't solve every problem
+
+- they are great for rewriting a reasonably short linear sequence of operations
+
+- Hadley Wickham's recommendation: you should reconsider using pipes if
+
+    * your pipes are longer than (say) ten steps - create some intermediate objects with meaningful names (this will make debugging easier and also make it easier to understand code)
+
+    * if there isn't one primary object being transformed and instead you have multiple inputs or outputs
+
+    * if you have a complex dependency structure - pipes are fundamentally linear, expressing complex relationships with them will yield confusing code
+
+
+
+## Other Tools From `magrittr`
+
+-  `%$%` is useful for functions that don't take a data frame but rather individual vectors as arguments
+    ```{r}
+    library(magrittr)
+    mtcars %$%
+        cor(disp, mpg)
+    ```
+
+- `%<>%` operator which allows you to replace code like
+    ```{r, eval = FALSE}
+    mtcars <- mtcars %>%
+        transform(cyl = cyl * 2)
+    ```
+    with
+    ```{r, eval = FALSE}
+    mtcars %<>% transform(cyl = cyl * 2)
+    ```
+
+
+
+## Other Tools From `magrittr`
+
+- `%T>%` works like `%>%` except that it returns the left-hand side instead of the right-hand side
+    ```{r fig.height=4}
+    rnorm(100) %>%
+        matrix(ncol = 2) %T>%
+        plot() %>%
+        str()
+    ```
+
+
+
+## Nested Pipes
+
+- note: you can nest pipes
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, height=2in]{figures/yo_dawg_pipes.jpg}
+\end{figure}
+
+
+
+## Nested Pipes
+
+```{r mysize = TRUE, size = "\\small", eval = FALSE}
+# estimate rolling ARIMA model, create 1 period ahead rolling forecasts
+results <-
+    data.tbl %>%
+    as_tbl_time(index = date) %>%
+    mutate(arima.model = roll_arima(PAYEMS)) %>%
+    filter(!is.na(arima.model)) %>%
+    mutate(arima.coefs = map(arima.model, tidy, conf.int = TRUE),
+           arima.f = map(arima.model, (. %>% forecast(1) %>% sw_sweep())))
+```
