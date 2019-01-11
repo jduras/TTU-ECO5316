@@ -1,0 +1,80 @@
+---
+title: '**Homework 1**'
+subtitle: |
+  | Eco 5316 Time Series Econometrics
+  | Spring 2019
+  | Due: Wednesday, January 16, 11.55pm (except for Problem 4)
+urlcolor: magenta
+linkcolor: magenta
+output: pdf_document
+---
+
+\renewcommand{\baselinestretch}{1.15} \selectfont
+
+
+## **Problem 1**
+
+<!--
+Create an account on [www.datacamp.com](https://www.datacamp.com). A free account is going to be enough, but their courses are actually quite fun and worth the small fee they charge for a student account. So, if you are interested in opening a full, paid account you can obtain a discount here: [www.datacamp.com/enroll-student](https://www.datacamp.com/enroll-student). 
+-->
+
+Take following two courses on Datacamp
+
+- Introduction to R, [www.datacamp.com/courses/free-introduction-to-r](https://www.datacamp.com/courses/free-introduction-to-r)
+- Working with RStudio IDE (Part 1), [www.datacamp.com/courses/working-with-the-rstudio-ide-part-1](https://www.datacamp.com/courses/working-with-the-rstudio-ide-part-1)
+
+
+
+## **Problem 2**
+
+If you have a Mac follow the instructions on this page to install R, RStudio and TeX: [instructions for Mac](http://www.reed.edu/data-at-reed/software/R/r_studio.html).
+
+If you have a PC install:  
+
+- MiKTeX [miktex.org/download](http://miktex.org/download/), basic is enough, during installation allow to install packages on the fly
+- R [cran.r-project.org](https://cran.r-project.org/)
+- RStudio [https://www.rstudio.com/products/rstudio/download/preview/](https://www.rstudio.com/products/rstudio/download/preview/)
+
+Open RStudio and install ```knitr``` by typing and executing `install.packages("knitr")` in the console. 
+
+
+<!--
+If you also want a portable version on your USB flash drive that you can use on any computer get:  
+- PortableApps from [portableapps.com/](http://portableapps.com/)  
+- portable MiKTeX from [miktex.org/portable](http://miktex.org/portable)  
+- portable R and RStudio from [sourceforge.net/projects/rportable/](https://sourceforge.net/projects/rportable/)
+-->
+
+
+## **Problem 3**
+
+Setup Github and GitKraken:
+
+- create a [GitHub](https://github.com) account
+- download GitKraken, a Git GUI client from [www.gitkraken.com/git-client](https://www.gitkraken.com/git-client)
+- install GitKraken, then login using your GitHub account credentials
+- send me an email with your GitHub username, in reply you'll receive an email from GitHub with an invitation to contribute to a [TTU-ECO5316](https://github.com/jduras/TTU-ECO5316) repo, accept that invitation
+
+<!--
+- note: GitKraken provides an easy to use interface; if you are interested in learning more about version control with Git have a look at this course on DataCamp: [Introduction to Git for Data Science](https://www.datacamp.com/courses/introduction-to-git-for-data-science)
+-->
+
+
+
+## **Problem 4**
+
+Test that R, RStudio and TeX work on your computer: 
+
+- download
+[example.zip](http://myweb.ttu.edu/jduras/files/teaching/eco5316/example.zip), extract it to obtain the R Markdown file `example.Rmd`
+- open `example.Rmd` in RStudio and add your name at the end of the second line
+- knit the `example.Rmd` file in RStudio to obtain `example.pdf`, `example.html` and `example.doc` files
+
+Please do not attempt the following part before the lecture on Friday, January 18.
+
+- on github.com: fork my [TTU-ECO5316](https://github.com/jduras/TTU-ECO5316) repo to create your remote copy of that repo on github.com
+- in GitKraken: select `File` -> `Clone` -> `GitHub.com`, then select your github copy of `TTU-ECO5316` and specify the folder on your computer where it should be downloaded
+- copy the knitted files `example.pdf`, `example.html`, `example.doc` and also the `example.Rmd` file into HW1 subfolder of your subfolder in the `students` folder of the `TTU-ECO5316` repo on your computer
+- in GitKraken: create a commit to add these four files to your local repo 
+- in GitKraken: push the changes to your remote repo
+

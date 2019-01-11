@@ -1,0 +1,104 @@
+---
+title: "R Markdown Example"
+author: 
+output:
+  pdf_document: default
+  html_document:
+    theme: cosmo
+  word_document: default
+linkcolor: magenta
+urlcolor: magenta
+---
+
+
+## R Markdown
+<!-- comment -->
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button in R Studio a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+A useful summary of RMarkdown syntax can be found here: <https://www.rstudio.com/resources/cheatsheets/>
+
+## Formating Text
+
+Enclose parts of text with asterisk to obtain change it to italics or bold: writing
+`*this text is in italics*` and `**this text is bold**` will result in *this text is in italics* and **this part is in bold** when you knit the document. End a line with two spaces to start a new paragraph.  
+
+To include a link use the following `[text for link](www.rstudio.com)` which yields [text for link](www.rstudio.com)   
+
+Use hashtag to make headers: one for level 1 header as in `# Header 1`, two for level 2 e.g. `## Header 2`, etc:
+
+# Header 1
+
+## Header 2
+
+### Header 3
+
+To create lists starts each line with an asterisk or a dash, for numbered lists start the line with numbers.
+
+
+## Math Formulas
+
+To include math formulas you can use standard LaTeX syntax:
+
+- for inline math write `$1+1=2$` to get $1+1=2$
+
+- use `$$` before and after to get an equation
+$$
+    x + y = 3
+$$
+
+- for an equation array use
+```
+$$
+\begin{aligned}
+    x + y &= 3 \\
+    x - y &= 2
+\end{aligned}
+$$
+```
+to obtain
+$$
+\begin{aligned}
+    x + y &= 3 \\
+    x - y &= 2
+\end{aligned}
+$$
+
+For more details on LaTeX syntax please see <https://en.wikibooks.org/wiki/LaTeX/Mathematics>
+
+
+## R Code and Output
+
+You can embed chunks of R code in RMarkdown document easily: start a chunk of R code with three backticks followed by r in curly brackets, and end it with three backtips. For example, including the following four lines in an R Markdown document
+```{r comment=NA, echo=FALSE}
+cat("```{r}\nsummary(cars)\nplot(cars)\n```")
+```
+is going to run the `summary` and `plot` functions on `cars` dataset and produce the following output
+```{r}
+summary(cars)
+plot(cars)
+```
+
+
+
+To include some result inline put the R expression between single backticks and the letter `r`; for example, including the following line in the R Markdown file
+```{r comment=NA, echo=FALSE}
+cat("The averege speed is `r mean(cars$speed)` mph.")
+```
+yields: The averege speed is `r mean(cars$speed)` mph.
+
+
+To supress the R code, warnings, or results to be printed out for any chunk you can use chunk options `echo=FALSE`, `warning=FALSE` and `include=FALSE`. Thus for example if the R Markdown file contains the following chunk
+```{r comment=NA, echo=FALSE}
+cat("```{r, echo=FALSE}\nplot(cars$speed, type='o', xlab='', ylab='speed, in mph')\n```")
+```
+graph will be shown but the command used to create it is not going to be displayed
+
+```{r, echo=FALSE}
+plot(cars$speed, type='o', xlab='', ylab='speed, in mph')
+```
+
+
+See http://yihui.name/knitr/options/ for additional chunks options.
