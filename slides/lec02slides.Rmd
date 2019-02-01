@@ -12,6 +12,8 @@ output:
 fontsize: 9pt
 urlcolor: magenta
 linkcolor: magenta
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Outline
@@ -26,7 +28,21 @@ linkcolor: magenta
 8. Example: AR model for Real GNP growth rate
 
 
+
 ## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+- **trend** is a tendency of the time series to either grow or decline over the long term 
+
+- **seasonality** refers to regular patterns arising in economic activity due to calendar (on quarterly, monthly, day of week basis)
+
+- **cycles** refer to patterns where the data rises and falls that are not of fixed period/duration (so while seasonal pattern has constant length cyclic pattern
+has variable length)
+
+\medskip
+
+- timing of peaks and troughs is predictable with seasonal data, but unpredictable in the long term with cyclic data
+
+
 
 ```{r set-options, echo=FALSE, cache=FALSE}
 options(width = 100)
@@ -39,135 +55,198 @@ knitr::knit_hooks$set(mysize = function(before, options, envir) {
 })
 ```
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE,  mysize=TRUE, size='\\scriptsize')
+```
+
+
+```{r, echo=FALSE}
 library(magrittr)
-library(tibble)
-library(dplyr)
-library(xts)
+library(tidyverse)
+library(tidyquant)
+library(timetk)
 library(tis)
-library(lubridate)
-library(ggplot2)
+# library(lubridate)
+# library(xts)
 library(scales)
+library(egg)
+library(grid)
 
 library(Quandl)
 Quandl.api_key('DLk9RQrfTVkD4UTKc7op')
 ```
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE}
-# define function for plots with recession shading - ggplot based
-myggplot <- function(mydata, mytitle="", mylabels){
+```{r, echo=FALSE}
+rec_dates <- nberDates() %>%
+        as_tibble() %>%
+        mutate_all(. %>% as.character() %>% as.Date(format = "%Y%m%d"))
 
-    rec.dates <-
-        nberDates() %>%
-        as.tibble() %>%
-        mutate_all(funs(as.character(.) %>% as.Date("%Y%m%d"))) %>%
-        as.data.frame()
-
-    dates <- as.Date(index(mydata))
-    
-    fst.year <- as.Date(floor_date(range(dates)[1], "5 years") - 365.25)
-    lst.year <- as.Date(ceiling_date(range(dates)[2], "5 years") - 365.25)
-    start.end <- c(fst.year, lst.year)
-    
-    if (is.null(ncol(mydata))) {
-        ggplot(mydata) +
-            geom_rect(data=rec.dates, aes(xmin=Start, xmax=End, ymin=-Inf, ymax=Inf), alpha=0.1) +
-            geom_line(aes(x=dates, y=mydata, colour="var"), size=0.5, color="blue") +
-            xlim(as.Date(range(dates))) +
-            theme_bw() +
-            theme(text=element_text(size=14), legend.position="bottom", legend.key=element_blank()) +
-            labs(title=mytitle, x="", y="")
-    }
-    else {
-        ggplot(mydata) +
-            geom_rect(data=rec.dates, aes(xmin=Start, xmax=End, ymin=-Inf, ymax=Inf), alpha=0.1) +
-            geom_line(aes(x=dates, y=mydata[,1], colour="var1"), size=1) +
-            geom_line(aes(x=dates, y=mydata[,2], colour="var2"), size=1) +
-            geom_line(aes(x=dates, y=mydata[,3], colour="var3"), size=1) +
-            geom_line(aes(x=dates, y=mydata[,4], colour="var4"), size=1) +
-            xlim(as.Date(range(dates))) +
-            scale_x_date(limits=start.end, breaks=date_breaks("5 years"), labels=date_format("%Y")) + 
-            theme_bw() +
-            theme(text=element_text(size=14), legend.position="bottom", legend.key=element_blank()) +
-            labs(title=mytitle, x="", y="") +
-            scale_colour_manual("",
-                                values=c("black","blue","red","green"),
-                                breaks=c("var1","var2","var3","var4"),
-                                labels=mylabels) +
-            guides(colour = guide_legend(override.aes = list(size=c(1,1,1,1))))
-    }
-#            geom_hline(yintercept=0, linetype="dotted") +
-}
-```
-
-
-Retail and Food Services Sales https://www.quandl.com/data/FRED/RSAFSNA
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-x <- Quandl("FRED/RSAFSNA", type="zoo")
-```
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(x, mytitle="Retail and Food Services Sales, in Millions of Dollars, Not Seasonally Adjusted", mylabels="")
-```
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(diff(log(x)), mytitle="Log-Change in Retail and Food Services Sales, Not Seasonally Adjusted", mylabels="")
+# plot with recession shading
+g <-ggplot() +
+      # geom_hline(yintercept = 0, color = "gray60") +
+      geom_rect(data = rec_dates, aes(xmin = Start, xmax = End, ymin = -Inf, ymax = Inf), alpha = 0.1) +
+      geom_line(aes(x = date, y = value), size=0.5, color="blue") +
+      labs(x = "", y = "") +
+      theme_bw() +
+      theme(plot.title = element_text(size = 15), 
+            legend.position = "none")
 ```
 
 
 
 ## Trend, Seasonality, Structural Change, Volatility, Outliers
 
-Real GDP https://www.quandl.com/data/FRED/GDPC1
+```{r, echo=FALSE, fig.height=4, fig.width=11}
+# Retail and Food Services Sales
+x_tbl <- "RSAFSNA" %>%
+    tq_get(get = "economic.data", from = "1992-01-01", to = "2018-12-31") %>%
+    mutate(sales = as.numeric(price),
+           sales_dlog = log(sales) - lag(log(sales)),
+           sales_pch_mom = price/lag(sales) - 1) %>%
+    select(date, c(sales, sales_dlog, sales_pch_mom)) %>%
+    gather(measure, value, c(sales, sales_dlog, sales_pch_mom)) 
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
-x <- Quandl("FRED/GDPC1", type="zoo")
+g %+% {x_tbl %>% filter(measure == "sales")} +
+    scale_y_continuous(limits = c(100000, 600000), breaks = seq(100000, 600000, 100000), labels = number_format(accuracy = 1)) +
+    xlim(as.Date(c("1992-02-01", "2018-12-31"))) +
+    labs(title = "Retail and Food Services Sales, Millions of Dollars")
+
+g %+% {x_tbl %>% filter(measure == "sales_pch_mom")} +
+    # geom_hline(yintercept = 0, color = "gray60")+
+    scale_y_continuous(limits = c(-0.3, 0.2), breaks = seq(-0.3, 0.2, 0.1), labels = percent_format(accuracy = 1)) +
+    xlim(as.Date(c("1992-02-01", "2018-12-31"))) +
+    labs(title = "Retail and Food Services Sales, Percentage Change")
 ```
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(x, mytitle="U.S. Real GDP, Billion of 2009 Dollars, Seasonally Adjusted Annual Rate", mylabels="")
-```
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(diff(log(x)), mytitle="Log-Change in U.S. Real GDP, Seasonally Adjusted Annual Rate", mylabels="")
-```
-
-
-## Trend, Seasonality, Structural Change, Volatility, Outliers
-
-Crude Oil Prices: https://www.quandl.com/data/FRED/DCOILWTICO
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
-# x <- Quandl("OPEC/ORB", type="zoo")
-x <- Quandl("FRED/DCOILWTICO", type="zoo")
-```
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(x, mytitle="Crude Oil Prices: West Texas Intermediate, Dollars per Barrel, Not Seasonally Adjusted", mylabels="")
-```
-
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(diff(log(x)), mytitle="Log-Change in Crude Oil Prices: West Texas Intermediate, Not Seasonally Adjusted", mylabels="")
-```
+$_{}$ \hspace*{0.75cm} https://fred.stlouisfed.org/graph/?g=mHDh
 
 
 
 ## Trend, Seasonality, Structural Change, Volatility, Outliers
 
-Cash Price of Corn (October 8, 2005) https://www.quandl.com/data/TFGRAIN/CORN
+```{r, echo=FALSE, fig.height=4, fig.width=11}
+# Retail and Food Services Sales
+x_tbl <- c("RSAFS", "RSAFSNA") %>%
+    tq_get(get = "economic.data", from = "1992-01-01", to = "2018-12-31") %>%
+    mutate(symbol_label = recode(symbol, RSAFS = "SA", RSAFSNA = "NSA")) %>%
+    group_by(symbol) %>%
+    mutate(sales = as.numeric(price),
+           sales_dlog = log(sales) - lag(log(sales)),
+           sales_pch_mom = sales/lag(sales) - 1,
+           err = sales_dlog - sales_pch_mom) %>%
+    ungroup() %>%
+    select(symbol, symbol_label, date, c(sales, sales_dlog, sales_pch_mom, err)) %>%
+    gather(measure, value, c(sales, sales_dlog, sales_pch_mom, err)) 
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
-x <- Quandl("TFGRAIN/CORN.1", type="zoo")
+g2 <- ggplot() +
+        geom_rect(data = rec_dates, aes(xmin = Start, xmax = End, ymin = -Inf, ymax = Inf), alpha = 0.15) +
+        geom_line(aes(x = date, y = value, colour = symbol_label, size = symbol_label)) +
+        scale_color_manual(values = c("blue", "black")) +
+        scale_size_manual(values = c(0.5, 1)) +
+        xlim(as.Date(c("1992-02-01", "2018-12-31"))) +
+        labs(subtitle = "Not Seasonally Adjusted (SA) vs Seasonally Adjusted (SA)",
+             x = "", y = "", color = "", size = "") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 15), 
+              legend.position = c(0.95, 0.935),
+              legend.key =  element_blank(),
+              legend.background = element_blank())
+
+g2 %+% {x_tbl %>% filter(measure == "sales")} +
+    scale_y_continuous(limits = c(100000, 600000), breaks = seq(100000, 600000, 100000), labels = number_format(accuracy = 1)) +
+    labs(title = "Retail and Food Services Sales, Millions of Dollars")
+
+g2 %+% {x_tbl %>% filter(measure == "sales_pch_mom")} +
+    # geom_hline(yintercept = 0, color = "gray60")+
+    scale_y_continuous(limits = c(-0.3, 0.2), breaks = seq(-0.3, 0.2, 0.1), labels = percent_format(accuracy = 1)) +
+    labs(title = "Retail and Food Services Sales, Percentage Change")
 ```
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(window(x, start=as.Date("2002-01-01"), end=as.Date("2006-01-01")), mytitle="Cash Price of Corn", mylabels="")
+$_{}$ \hspace*{0.75cm} https://fred.stlouisfed.org/graph/?g=mHDh
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+```{r, echo=FALSE, fig.height=4, fig.width=11}
+# Real GDP
+x_tbl <- "GDPC1" %>%
+    tq_get(get = "economic.data", from = "1947-01-01", to = "2018-12-31") %>%
+    rename(rgdp = price) %>%
+    mutate(rgdp_dlog = log(rgdp) - lag(log(rgdp)),
+           rgdp_pch_qoq = rgdp/lag(rgdp) - 1,
+           err = rgdp_dlog - rgdp_pch_qoq) %>%
+    gather(measure, value, c(rgdp, rgdp_dlog, rgdp_pch_qoq, err)) 
+
+g %+% {x_tbl %>% filter(measure == "rgdp")} +
+    scale_y_continuous(limits = c(0, 20000), breaks = seq(5000, 20000, 5000), labels = number_format(accuracy = 1)) +
+    xlim(as.Date(c("1947-01-01", "2018-12-31"))) +
+    labs(title = "U.S. Real GDP, Billion of 2012 Dollars, Seasonally Adjusted Annual Rate")
+
+g %+% {x_tbl %>% filter(measure == "rgdp_dlog")} +
+    # geom_hline(yintercept = 0, color = "gray60")+
+    # scale_y_continuous(limits = c(-0.03, 0.04), breaks = seq(-0.03, 0.04, 0.01), labels = percent_format(accuracy = 1)) +
+    xlim(as.Date(c("1947-02-01", "2018-12-31"))) +
+    labs(title = "Log-Change in U.S. Real GDP, Seasonally Adjusted Annual Rate")
 ```
 
-```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
-myggplot(diff(log(window(x, start=as.Date("2002-01-01"), end=as.Date("2006-01-01")))), mytitle="Log-Change in Cash Price of Corn", mylabels="")
+$_{}$ \hspace*{0.75cm} https://research.stlouisfed.org/fred2/series/GDPC1
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+```{r, echo=FALSE, fig.height=4, fig.width=11}
+# Crude Oil Prices: West Texas Intermediate
+x_tbl <- "DCOILWTICO" %>%
+    tq_get(get = "economic.data", from = "1986-01-01", to = "2018-12-31") %>%
+    mutate(price_dlog = log(price) - lag(log(price)),
+           price_pch_dod = price/lag(price) - 1,
+           err = price_dlog - price_pch_dod) %>%
+    gather(measure, value, c(price, price_dlog, price_pch_dod, err)) 
+
+g %+% {x_tbl %>% filter(measure == "price")} +
+    # scale_y_continuous(limits = c(0, 150), breaks = seq(0, 150, 50), labels = number_format(accuracy = 1)) +
+    xlim(as.Date(c("1986-01-01", "2018-12-31"))) +
+    labs(title = "Crude Oil Prices: West Texas Intermediate, Dollars per Barrel, Not Seasonally Adjusted")
+
+g %+% {x_tbl %>% filter(measure == "price_dlog")} +
+    # geom_hline(yintercept = 0, color = "gray60")+
+    # scale_y_continuous(limits = c(-0.425, 0.2), breaks = seq(-0.4, 0.2, 0.2), labels = percent_format(accuracy = 1)) +
+    xlim(as.Date(c("1986-01-01", "2018-12-31"))) +
+    labs(title = "Log-Change in Crude Oil Prices: West Texas Intermediate, Not Seasonally Adjusted")
 ```
+
+$_{}$ \hspace*{0.75cm} https://research.stlouisfed.org/fred2/series/DCOILWTICO
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+```{r, echo=FALSE, fig.height=4, fig.width=11}
+# Cash Price of Corn
+x_tbl <- "TFGRAIN/CORN.1" %>%
+    tq_get(get = "quandl", from = "2001-01-01", to = "2018-12-31") %>%
+    rename(price = cash.price) %>%
+    mutate(price_dlog = log(price) - lag(log(price)),
+           price_pch_dod = price/lag(price) - 1,
+           err = price_dlog - price_pch_dod) %>%
+    gather(measure, value, c(price, price_dlog, price_pch_dod, err)) 
+
+g %+% {x_tbl %>% filter(measure == "price")} +
+    scale_y_continuous(limits = c(1.6, 3.8), breaks = seq(2, 3.5, 0.5), labels = number_format(accuracy = 0.1)) +
+    xlim(as.Date(c("2002-01-01", "2005-12-31"))) +
+    labs(title = "Cash Price of Corn")
+
+g %+% {x_tbl %>% filter(measure == "price_dlog")} +
+    # geom_hline(yintercept = 0, color = "gray60")+
+    # scale_y_continuous(limits = c(-0.425, 0.2), breaks = seq(-0.4, 0.2, 0.2), labels = percent_format(accuracy = 1)) +
+    xlim(as.Date(c("2002-01-01", "2005-12-31"))) +
+    labs(title = "Log-Change in Cash Price of Corn")
+```
+
+$_{}$ \hspace*{0.75cm} https://www.quandl.com/data/TFGRAIN/CORN
+
 
 
 
@@ -209,7 +288,7 @@ $$
 
 ## Preliminaries
 
-**Def:** Stochastic process (or time series process) is a sequence of random variables $\{y_t\}$, observed time series is a particular realization of this process.
+**Def:** Stochastic process (or time series process) is a sequence of random variables. Observed time series is a particular realization of this process.
 
 \begin{figure}[h]
     \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_4.png}
@@ -217,7 +296,6 @@ $$
 
 <!--
 Notation: $\{y_t\}$ times series, $y_t$ value at period $t$
-\bigskip
 -->
 
 
@@ -234,9 +312,15 @@ Notation: $\{y_t\}$ times series, $y_t$ value at period $t$
 
 ## Preliminaries
 
-**Def:** Stochastic process $\{y_t\}$ is **weakly stationary** if   
+**Def:** Stochastic process $\{y_t\}$ is (second order) **weakly stationary** if   
 (i) $E(y_t)=\mu$ for all $t$  
 (ii) $cov(y_t,y_{t-l})=\gamma_l$ for all $t$, $l$
+
+\medskip
+
+Note: if (i) is satisfied but (ii) the process is first order weakly stationary
+
+Note: for $l = 0$ we get that $var(y_t) = cov(y_t,y_t) = \gamma_0$ for all $t$, which means that variance is constant over time
 
 \begin{figure}[h]
     \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_6B.png}
@@ -255,7 +339,9 @@ Notation: $\{y_t\}$ times series, $y_t$ value at period $t$
 
 - weak stationarity allows us to use sample moments to estimate population moments
 
-- for example, given a weakly stationary time series $\{y_1,y_2,\ldots,y_t\}$ the first moment $E(y_t)$ can be estimated using $\frac{1}{t}\sum_{j=1}^t y_j$ which would make little sense if $E(y_1) \neq E(y_2) \neq \ldots \neq E(y_t)$
+- for example, given a weakly stationary time series $\{y_1,y_2,\ldots,y_t\}$ the first moment $E(y_t)$ can be estimated using $\frac{1}{t}\sum_{j=1}^t y_j$
+
+- for nonstationary process $\frac{1}{t}\sum_{j=1}^t y_j$ is not a useful estimator, since $E(y_1) \neq E(y_2) \neq \ldots \neq E(y_t)$
 
 
 
@@ -476,14 +562,12 @@ are $x_{1,2} = -\frac{\phi_1 \pm \sqrt{\phi_1^2 + 4\phi_2}}{2 \phi_2}$
 ## Partial autocorrelation function (PACF)
 
 - consider the following system of AR models that can be estimated by OLS
-$$
-\begin{aligned}
+\begin{align}
     y_t &= \phi_{0,1} + \phi_{1,1} y_{t-1} + e_{1,t} \\
     y_t &= \phi_{0,2} + \phi_{1,2} y_{t-1} + \phi_{2,2} y_{t-2} + e_{2,t} \\
     y_t &= \phi_{0,3} + \phi_{1,3} y_{t-1} + \phi_{2,3} y_{t-2} + \phi_{3,3} y_{t-3} + e_{3,t} \\
         & \vdots    
-\end{aligned}
-$$
+\end{align}
 
  - estimated coefficients $\hat \phi_{1,1}, \hat \phi_{2,2}, \hat \phi_{3,3}, \ldots$ form the sample **partial autocorrelation function** (PACF)
  
@@ -511,8 +595,8 @@ AR(1) with $\phi_1=0.7$
 
 ```{r, echo=FALSE, fig.height=6}
     par(mfrow=c(2,2), cex=1, mar=c(2,4,0,1))
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    plot(0:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
     acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
     acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
 ```
@@ -528,8 +612,8 @@ AR(1) with $\phi_1=-0.7$
 
 ```{r, echo=FALSE, fig.height=6}
     par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    plot(0:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
     acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
     acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
 ```
@@ -545,8 +629,8 @@ AR(2) with $\phi_1=0.2$, $\phi_2=0.7$
 
 ```{r, echo=FALSE, fig.height=6}
     par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    plot(0:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
     acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
     acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
 ```
@@ -562,8 +646,8 @@ AR(2) with $\phi_1=1.2$, $\phi_1=-0.7$
 
 ```{r, echo=FALSE, fig.height=6}
     par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
-    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    plot(0:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
     acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
     acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
 ```
@@ -692,24 +776,22 @@ $$
 
 ## Example: AR model for Real GNP growth rate
 
-- an example showing the steps of estimating and checking a model for the growth rate of GNP can be found here: [lec03GNP.zip](http://myweb.ttu.edu/jduras/files/teaching/e5316/lec03GNP.zip) \smallskip
+<!--
+- an example showing the steps of estimating and checking a model for the growth rate of GNP can be found here: [lec03GNP.zip](http://myweb.ttu.edu/jduras/files/teaching/eco5316/lec03GNP.zip) \smallskip
+-->
 
-    ```{r mysize=TRUE, size='\\scriptsize', message=FALSE}
-    # load magrittr package for pipe operators
-    library(magrittr)
-    ```
-    
-    ```{r mysize=TRUE, size='\\scriptsize'}
-    # import the data on the growth rate of GDP, convert it into time series xts object
-    y <- scan(file="http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-gnp4791.txt") %>%
-           ts(start=c(1947,2), frequency=4) 
-    ```
+```{r}
+# load magrittr package (pipe operators)
+library(magrittr)
+```
 
+```{r}
+# import the data on the growth rate of GDP, convert it into time series xts object
+y <- scan(file = "http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-gnp4791.txt") %>%
+       ts(start = c(1947,2), frequency = 4) 
+```
 
-
-## Example: AR model for Real GNP growth rate
-
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r}
 str(y)
 head(y)
 tail(y)
@@ -719,46 +801,35 @@ tail(y)
 
 ## Example: AR model for Real GNP growth rate
 
-- plot using base package
-    ```{r mysize=TRUE, size='\\scriptsize', fig.height=4}
-    plot(y, xlab="", ylab="", main="Real GNP growth rate")
-    ```
-
-
-
-## Example: AR model for Real GNP growth rate
-
-- plot using `ggplot2` package
-    ```{r mysize=TRUE, size='\\scriptsize', warnings = FALSE, message = FALSE, fig.height=3.5}
-    # load ggplot2
-    library(ggplot2)
-    # load ggfortify to be able to plot time series and output from acf using autoplot
-    library(ggfortify)
-    # define deafult theme to be B&W
-    theme_set(theme_bw())
-    # plot
-    autoplot(y) + 
-        labs(x="", y="", title="Real GNP growth rate") 
-    ```
-
-
-
-
-## Example: AR model for Real GNP growth rate
-
-```{r mysize=TRUE, size='\\scriptsize', fig.height=2.75}
-# plot ACF and PACF for y up to lag 24
-y %>% as.data.frame() %>% acf(type="correlation",lag=24, plot=FALSE) %>% autoplot()
-y %>% as.data.frame() %>% acf(type="partial",lag=24, plot=FALSE) %>% autoplot()
+```{r fig.height=3.5}
+# load ggplot2, ggfortify and forecast packages
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+# define default theme to be B&W
+theme_set(theme_bw())
+# plot
+autoplot(y) + 
+    labs(x = "", y = "", title = "Real GNP growth rate") 
 ```
 
 
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r fig.height=2.75}
+# plot ACF and PACF for y up to lag 24
+ggAcf(y, lag.max = 24)
+ggPacf(y, lag.max = 24)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\tiny'}
 # estimate an AR(1) model - there is only one significant coefficient in the PACF plot for y
-m1 <- arima(y, order=c(1,0,0))
+m1 <- Arima(y, order = c(1,0,0))
 # show the structure of object m1
 str(m1)
 ```
@@ -767,7 +838,9 @@ str(m1)
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+\normalsize
+
+```{r}
 # print out results for m1
 m1
 ```
@@ -776,38 +849,38 @@ m1
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r fig.height=6.25}
 # diagnostics for AR(1) model - there seems to be a problem with remaining serial correlation at lag 2
-ggtsdiag(m1, gof.lag=16)
+ggtsdiag(m1, gof.lag = 16)
 ```
 
 
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r fig.height=6.25}
 # estimate an AR(2) model to deal with the problem of remaining serial correlation at lag 2
-m2 <- arima(y, order=c(2,0,0))
+m2 <- Arima(y, order = c(2,0,0))
 # diagnostics for AR(2) model shows that problem with remaining serial correlation at lag 2 is gone
-ggtsdiag(m2, gof.lag=16)
+ggtsdiag(m2, gof.lag = 16)
 ```
 
 
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r fig.height=6.25}
 # estimate an AR(3) model since PACF for lag 2 and 3 are comparable in size
-m3 <- arima(y, order=c(3,0,0))
+m3 <- Arima(y, order = c(3,0,0))
 # diagnostics for the AR(3) model
-ggtsdiag(m3, gof.lag=16)
+ggtsdiag(m3, gof.lag = 16)
 ```
 
 
-
+<!--
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r}
 # use AIC to choose order p of the AR model
 m <- ar(y, method="mle")
 str(m)
@@ -820,28 +893,28 @@ m$aic
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r}
 # BIC prefers AR(1) to AR(2) or AR(3)
 # in general BIC puts a larger penalty on additional coefficients than AIC
 BIC(m1)
 BIC(m2)
 BIC(m3)
 ```
-
+-->
 
 
 ## Example: AR model for Real GNP growth rate
 
-```{r mysize=TRUE, size='\\scriptsize'}
+```{r}
 # Ljung-Box test - for residuals of a model adjust the degrees of freedom m 
 # by subtracting the number of parameters g
 # this adjustment will not make a big difference if m is large but matters if m is small
 
-m2.LB.lag8 <- Box.test(m2$residuals, lag=8, type="Ljung")
+m2.LB.lag8 <- Box.test(m2$residuals, lag = 8, type = "Ljung")
 m2.LB.lag8
-1-pchisq(m2.LB.lag8$statistic, df=6)
+1-pchisq(m2.LB.lag8$statistic, df = 6)
 
-m2.LB.lag12 <- Box.test(m2$residuals, lag=12, type="Ljung")
+m2.LB.lag12 <- Box.test(m2$residuals, lag = 12, type = "Ljung")
 m2.LB.lag12
-1-pchisq(m2.LB.lag12$statistic, df=10)
+1-pchisq(m2.LB.lag12$statistic, df = 10)
 ```

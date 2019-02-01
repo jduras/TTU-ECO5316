@@ -1,0 +1,163 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 4 Moving Average (MA) processes
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex 
+    # keep_tex: yes
+    highlight: tango
+    fonttheme: professionalfonts
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## MA($q$) model
+
+- let $\{\varepsilon_t\}$ be a white noise time series; process $\{y_t\}$ follows a moving average model of order 1, or MA(1) model, if
+$$
+    y_t = c_0 + \varepsilon_t + \theta_1 \varepsilon_{t-1}
+$$
+or, using the lag operator we can write $y_t = c_0 + (1+\theta_1 L) \varepsilon_t$
+
+- the bid-ask bounce in stock trading may introduce an MA(1) structure in a return series
+
+- in general, for $q>0$ a moving average model of order $q$, or MA($q$) model, is given by
+$$
+    y_t = c_0 + \varepsilon_t + \theta_1 \varepsilon_{t-1} + \ldots + \theta_q \varepsilon_{t-q}
+$$
+or equivalently using the lag operator $y_t = c_0 + (1+\theta_1 L + \ldots +\theta_q L^q) \varepsilon_t$
+
+
+
+
+
+## Autocorrelation function for MA($q$) model
+
+- if $q=1$ it can be shown that $\gamma_0=Var(y_t)=(1+\theta_1^2)\sigma_a^2$, and also that $\gamma_1=\theta_1 \sigma_a^2$ and  $\gamma_l=0$ for $l\geq 2$; thus
+\begin{equation}
+    \rho_1 = \frac{\theta_1}{1+\theta_1^2} \qquad  \rho_l = 0 \text{ for } l > 1
+\end{equation}
+
+- theoretical ACF for MA(1) thus cuts off to zero after lag 1
+
+\medskip
+
+- if $q=2$ we have $\gamma_0=Var(y_t)=(1+\theta_1^2+\theta_2^2)\sigma_a^2$, and the theoretical ACF for MA(2) satisfies
+\begin{equation}
+    \rho_1 = \frac{\theta_1 + \theta_1 \theta_2}{1+\theta_1^2+\theta_2^2} \qquad \rho_2 = \frac{\theta_2}{1+\theta_2^2+\theta_1^2}
+    \qquad \rho_l = 0 \text{ for } l > 2
+    \label{eq:ACF_MA2}
+\end{equation}
+
+- theoretical ACF for MA(1) thus cuts off to zero after lag 2
+
+\medskip
+
+- in general, for MA($q$) model $\gamma_0=Var(y_t)=(1+\theta_1^2+\ldots+\theta_q^2)\sigma_a^2$ 
+
+- theoretical ACF for MA($q$) model satisfies $\rho_l=0$ for $l > q$
+
+
+## Autocorrelation function for MA($q$) model
+
+- ACF is thus useful for identifying the order of an MA model in the same way the PACF is useful in identifying the order of an AR model
+
+- note that MA($q$) model is always weakly stationary, unlike AR($p$) model which is only weakly stationary if its characteristic roots lie inside the unit circle
+
+- interactive overview of ACF and PACF for simulated MA($q$) models is [here](https://janduras.shinyapps.io/ARMAsim/lec02ARMAsim.Rmd)
+
+
+## Autocorrelation function for MA($q$) model
+
+```{r, echo=FALSE}
+    mymaxlag <- 20
+    mynobs <- 500
+```
+
+**MA(1) with $\theta_1=0.7$**
+```{r, echo=FALSE}
+    theta <- c(0.7,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(0,0,length(theta)), ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,0,1))
+    plot(0:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## Autocorrelation function for MA($q$) model
+
+**MA(1) with $\theta_1=-0.7$**
+```{r, echo=FALSE}
+    theta <- c(-0.7,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(0,0,length(theta)), ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## Autocorrelation function for MA($q$) model
+
+**MA(2) with $\theta_1=0.2$, $\theta_2=0.7$**
+```{r, echo=FALSE}
+    theta <- c(0.2,0.7,0)
+    y.sim1 <- arima.sim(model=list(order = c(0,0,length(theta)), ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## Autocorrelation function for MA($q$) model
+
+**MA(2) with $\theta_1=0.2$, $\theta_1=-0.7$**
+```{r, echo=FALSE}
+    theta <- c(0.2,-0.7,0)
+    y.sim1 <- arima.sim(model=list(order = c(0,0,length(theta)), ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+<!--
+## Estimation
+
+- MA models are commonly estimated using maximum likelihood
+
+- two approaches: **conditional-likelihood method** and **exact likelihood method**
+
+- conditional maximum likelihood method assumes that initial shocks are zero, $\varepsilon_t=0$ for $t \leq 0$
+
+- exact maximum likelihood method treats initial shocks as additional unknown parameters that are estimated together with $\theta_1, \ldots, \theta_q$
+
+- exact method is more computationally intensive but preferred
+
+- if sample size is large, the two methods yield very similar results
+
+-->
