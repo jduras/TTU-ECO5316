@@ -4,6 +4,7 @@ library(tidyverse)
 library(tidyquant)
 library(timetk)
 library(ggfortify)
+library(egg)
 library(forecast)
 
 # set default ggplot theme to theme_bw()
@@ -22,6 +23,13 @@ wTX_tbl <-
     mutate(dlwTX = log(wTX) - lag(log(wTX)))
 
 # plot time series for total wages and salaries in Texas - using autoplot
+wTX_tbl %>%
+    autoplot()
+
+wTX_tbl %>%
+    tk_xts(date_var = date, select = c("wTX", "dlwTX")) %>%
+    autoplot()
+
 wTX_tbl %>%
     tk_xts(date_var = date, select = c("wTX", "dlwTX")) %>%
     autoplot() + 
@@ -54,8 +62,14 @@ str(dlwTX)
 # number of lags for ACF and PACF plots
 nlags <- 24
 
+# plot ACF and PACF
 ggAcf(dlwTX, lag.max = nlags)
 ggPacf(dlwTX, lag.max = nlags)
+
+# plot ACF and PACF together in same figure
+g1 <- ggAcf(dlwTX, lag.max = nlags)
+g2 <- ggPacf(dlwTX, lag.max = nlags)
+ggarrange(g1, g2, ncol = 1)
 
 
 # estimate ARMA models
@@ -79,7 +93,7 @@ m2_rest
 ggtsdiag(m2_rest, gof.lag = nlags)
 
 # find the best ARIMA model based on either AIC, AICc or BIC
-m3 <- auto.arima(dlwTX, ic = "aicc", seasonal = FALSE, stationary = TRUE)
+m3 <- auto.arima(dlwTX, ic = "aicc", seasonal = FALSE, stationary = TRUE, trace = TRUE)
 m3
 ggtsdiag(m3, gof.lag = nlags)
 
