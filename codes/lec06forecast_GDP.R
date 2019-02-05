@@ -130,11 +130,12 @@ window.length <- length(data.ts.1)
 tic()
 results <-
     data.tbl %>%
-    as_tsibble(index = date) %>%                                                                # covert to tsibble
-    mutate(arma.model = slide(dly, ~Arima(.x, order = c(1,0,0)), .size = window.length)) %>%    # estimate models
-    filter(!is.na(arma.model)) %>%                                                              # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(arma.coefs = map(arma.model, tidy, conf.int = TRUE),                                 # extract coefficients
-           arma.f = map(arma.model, (. %>% forecast(h = 1) %>% sw_sweep())))                    # extract forecast
+    mutate(yearq = yearquarter(date)) %>%
+    as_tsibble(index = yearq) %>%                                                               # covert to tsibble
+    mutate(ar1.model = slide(dly, ~Arima(.x, order = c(1,0,0)), .size = window.length)) %>%     # estimate models
+    filter(!is.na(ar1.model)) %>%                                                               # remove periods at the beginning of sample where model could not be estimated due to lack of data,
+    mutate(ar1.coefs = map(ar1.model, tidy, conf.int = TRUE),                                   # extract coefficients
+           ar1.f = map(ar1.model, (. %>% forecast(h = 1) %>% sw_sweep())))                      # extract forecast
 results
 toc()
 
@@ -142,12 +143,12 @@ toc()
 # plot estimated coefficients with confidence intervals
 results %>%
     as_tibble() %>%
-    select(date, arma.coefs) %>%
-    unnest(arma.coefs) %>%
-    ggplot(aes(x = date, y = estimate, group = term)) +
+    select(yearq, ar1.coefs) %>%
+    unnest(ar1.coefs) %>%
+    ggplot(aes(x = yearq, y = estimate, group = term)) +
         geom_line(color = "royalblue") +
-        geom_ribbon(aes(x = date, ymin = conf.low, ymax = conf.high), alpha = 0.5, fill = "lightblue") +
-        geom_hline(yintercept = 0, color = "black")+
+        geom_ribbon(aes(x = yearq, ymin = conf.low, ymax = conf.high), alpha = 0.5, fill = "lightblue") +
+        geom_hline(yintercept = 0, color = "black") +
         labs(x = "", y = "",
              title = "Coefficient estimates",
              subtitle = paste(window.length, "month rolling window model"))+
@@ -158,18 +159,19 @@ results %>%
 m1.f.1.rol <-
     results %>%
     as_tibble() %>%
-    select(date, arma.f) %>%
-    unnest(arma.f) %>%
+    select(yearq, ar1.f) %>%
+    unnest(ar1.f) %>%
     filter(key == "forecast") %>%
-    mutate(date = date %m+% months(3))
+    mutate(yearq = yearq %m+% months(3) %>% yearquarter())
 
 # plot the 1 period ahead rolling forecasts
 m1.f.1.rol %>%
-    ggplot(aes(x = date, y = value)) +
+    ggplot(aes(x = yearq, y = value)) +
         geom_ribbon(aes(ymin = lo.95, ymax = hi.95), fill = "royalblue", alpha = 0.2) +
         geom_ribbon(aes(ymin = lo.80, ymax = hi.80), fill = "royalblue", alpha = 0.3) +
         geom_line(size = 0.7, col = "blue") +
-        geom_line(data = (data.tbl %>% filter(year(date) > 1999)), aes(x = date, y = dly)) +
+        geom_line(data = (data.tbl %>% filter(year(date) > 1999)) %>% mutate(yearq = yearquarter(date)), 
+                  aes(x = yearq, y = dly)) +
         geom_hline(yintercept = 0, color = "gray50") +
         scale_y_continuous(labels = percent_format(accuracy = 1),
                            breaks = seq(-0.05, 0.10, 0.05)) +
