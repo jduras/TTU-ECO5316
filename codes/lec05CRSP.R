@@ -36,22 +36,14 @@ g2 <- ggPacf(y, lag.max = nlags)
 ggarrange(g1, g2, ncol = 1)
 
 # estimate models
-m1 <- Arima(y, order = c(3,0,0))
-m1
-ggtsdiag(m1, gof.lag = nlags)
+m <- Arima(y, order = c(3,0,0))
+m
+ggtsdiag(m, gof.lag = nlags)
 
 m <- auto.arima(y, ic = "bic", stationary = TRUE, seasonal = FALSE, approximation = FALSE, stepwise = FALSE)
 m
 ggtsdiag(m, gof.lag = nlags)
 
-m <- auto.arima(y, ic = "aicc", stationary = TRUE, seasonal = FALSE, approximation = FALSE, trace = TRUE)
-m
-ggtsdiag(m, gof.lag = nlags)
-
-m <- auto.arima(y, ic = "aicc", stationary = TRUE, seasonal = FALSE, stepwise = FALSE, trace = TRUE)
-m
-ggtsdiag(m, gof.lag = nlags)
-
-m <- auto.arima(y, ic = "aicc", stationary = TRUE, seasonal = FALSE, approximation = FALSE, stepwise = FALSE, trace = TRUE)
+m <- auto.arima(y, ic = "aicc", stationary = TRUE, seasonal = FALSE, approximation = FALSE, stepwise = FALSE)
 m
 ggtsdiag(m, gof.lag = nlags)
