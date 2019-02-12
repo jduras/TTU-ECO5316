@@ -2,6 +2,17 @@
 title: "5316 homework 3 Problem 2"
 author: "Shijia Gao"
 
+library(tidyquant)
+library(timetk)
+library(tsibble)
+library(broom)
+library(sweep)
+library(ggplot2)
+library(scales)
+library(ggfortify)
+library(egg)
+library(tictoc)
+library(forecast)
 # Problem 2
 # set default ggplot theme to theme_bw()
 theme_set(theme_bw())
