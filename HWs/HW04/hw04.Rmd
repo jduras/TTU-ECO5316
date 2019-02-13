@@ -1,0 +1,49 @@
+---
+title: '**Homework 4**'
+subtitle: |
+  | Eco 5316 Time Series Econometrics
+  | Spring 2019
+  | Due: Saturday, February 23, 11.55pm
+urlcolor: magenta
+linkcolor: magenta
+output:
+  pdf_document: default
+---
+
+\renewcommand{\baselinestretch}{1.15} \selectfont
+
+
+## **Problem 1**
+
+<!--
+Take the ["Data Manipulation in R with dplyr"](https://www.datacamp.com/courses/dplyr-data-manipulation-r-tutorial) coursea nd the ["Joining Data in R with dplyr"](https://www.datacamp.com/courses/joining-data-in-r-with-dplyr) course. 
+-->
+
+Complete the review of the HW3 code of your classmate on github.com.
+
+\bigskip
+
+
+## **Problem 2**
+
+<!--
+Submit your solution for Problem 2 in the form a short report, prepared using R Markdown. Compile the report into a pdf or an html file and upload it to your dropbox folder together with the source Rmd file.
+-->
+
+Submit your solution for this problem to your student folder in the `TTU-ECO5316` github repo under the file name `yourlastname_eco5316_hw4q2.r`. Create a pull request to add it to the `students` branch of the `jduras\TTU-ECO5316` repo.
+
+
+(a) Use `tq_get` to obtain quarterly Real Personal Consumption Expenditures for the 1955Q1-2018Q4 sample, available on FRED under code [`PCECC96`](https://fred.stlouisfed.org/series/PCECC96).
+
+(b) Construct the log changes in the Real Personal Consumption Expenditures $\Delta \log c_t = \log c_t - \log c_{t-1}$ where $c_t$ is the original quarterly Real Personal Consumption Expenditures. 
+
+(c) As in the example discussed in class and the lecture slides, split the sample into two parts: first one up to 2008Q4, second one from 2009Q1 onward. Use `auto.arima` with `ic = aic` and `stationary = TRUE`, `stepwise = FALSE`, `approximation = FALSE` to find the best model. Check the estimated model for adequacy, diagnose residuals using `ggtsdiag`. 
+
+(e) Use the estimated model with `forecast` to generate 1 to 36 step ahead forecast for the prediction subsample, 2009Q1-2018Q4. 
+
+(f) Use `slide` from the `tsibble` package to generate a rolling scheme forecast, in particular a sequence of 1 period ahead forecasts for the prediction subsample, 2009Q1-2018Q4. 
+
+(g) Plot the multistep forecast and the 1 step ahead rolling forecasts, with their confidence intervals. 
+
+(h) Use `accuracy` to evaluate the out of sample accuracy of the two sets of forecasts.
+
