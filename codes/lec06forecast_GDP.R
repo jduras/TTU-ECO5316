@@ -151,7 +151,7 @@ results %>%
         geom_hline(yintercept = 0, color = "black") +
         labs(x = "", y = "",
              title = "Coefficient estimates",
-             subtitle = paste(window.length, "month rolling window model"))+
+             subtitle = paste(window.length, "quarters rolling window model"))+
         theme_minimal() +
         facet_wrap(~term, scales = "free_y")
 
