@@ -26,7 +26,7 @@ Take ["Reporting with R Markdown"](https://www.datacamp.com/courses/reporting-wi
 Submit your solution for Problem 2 in the form a short report, prepared using R Markdown. Compile the report into a pdf or an html file and upload it to your dropbox folder together with the source Rmd file.
 -->
 
-(a) Use `tq_get` to obtain the quarterly real private fixed investment (chain-type quantity index), available on FRED under code [`B007RA3Q086SBEA`](https://fred.stlouisfed.org/series/B007RA3Q086SBEA).
+(a) Use `tq_get` to obtain the quarterly real private fixed investment (chain-type quantity index) for the period 1960Q1-2015Q4, available on FRED under code [`B007RA3Q086SBEA`](https://fred.stlouisfed.org/series/B007RA3Q086SBEA).
 
 (b) Construct the log changes in the real private fixed investment $\Delta \log rPFI_t = \log rPFI_t - \log rPFI_{t-1}$ where $rPFI_t$ is the original quarterly real private fixed investment. Plot the time series for $rPFI_t$ and $\Delta \log rPFI_t$ using `ggplot`.
 
