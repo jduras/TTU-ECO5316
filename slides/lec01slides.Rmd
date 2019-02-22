@@ -1,0 +1,160 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 1 Introduction
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex 
+    # keep_tex: yes
+    highlight: tango
+    fonttheme: professionalfonts
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+---
+
+## Contact Information
+
+<!--
+like they say after boarding an airplane: this is a flight 5570 to Moscow, if Moscow is not your destination now is probably a good time to get off 
+-->
+
+
+- classes: MWF 9:00 a.m. - 9:50 a.m., 00226 Holden Hall   \bigskip
+
+- instructor: Jan Duras
+- email: [jan.duras@ttu.edu](mailto:jan.duras@ttu.edu)
+- office: 257 Holden Hall  
+- office hours: T 4:00 p.m. - 6:00 p.m. and by appointment \bigskip
+
+- **please check your emails every day for important class announcements**
+
+- **when sending an email start the subject with 'Eco 5316'**
+
+
+
+## Expectations - Course Content
+
+- textbook
+
+    Enders, W. \href{www.wiley.com/WileyCDA/WileyTitle/productCd-EHEP003218.html}{Applied Econometric Time Series}, Fourth Edition, Wiley, 2014.  
+    Tsay, R. S. \href{http://www.wiley.com/WileyCDA/WileyTitle/productCd-EHEP002380.html}{Analysis of Financial Time Series}, Third Edition, Wiley, 2010. 
+    \medskip
+
+- trade offs faced - depth vs breadth, theory vs application
+
+- we will cover some theory, to understand the methodology, but the focus and emphasis is on applying the methods
+
+
+
+## Expectations - Grading
+
+- no exams
+
+- weekly homework assignments
+
+- one short presentation of a HW problem 
+
+- you are strongly encouraged to work in study groups; however you have to submit your own solution
+
+
+
+## Expectations - Homeworks and Presentation
+
+- all homeworks will be either on datacamp.com, or will ask you to do some empirical work in R
+
+- you will have to present one of the HW problems in class
+
+- this presentation should be about 5 minutes long and has to be prepared in beamer using R Markdown 
+
+
+
+## Expectations - R
+
+- we will use R rather than Stata or EViews - it requires bigger time investment, but the payoff is worth it
+
+- you have full access to **all** courses on [datacamp.com](https://www.datacamp.com) until July 9, 2019
+
+- if you have any question/problem with R [stackoverflow.com](http://stackoverflow.com/questions/tagged/r) is a great resource to look for answers/suggestions
+
+
+
+## Expectations - Class Attendance
+
+- smartphones, tablets, laptops and any other electronic devices are not to be used in class unless instructed to do so 
+- there is ample empirical evidence that they disrupt learning and have negative effect on GPA, they are also not particularly efficient for learning even if used for taking notes 
+- a couple of links to some of these studies
+
+    [The New Marshmallow Test: Students Can't Resist Multitasking](http://www.slate.com/articles/health_and_science/science/2013/05/multitasking_while_studying_divided_attention_and_technological_gadgets.html)  
+    
+    \medskip
+    
+    [Advantages of Longhand over Laptop Note Taking](http://journalistsresource.org/studies/society/education/longhand-versus-laptop-note-taking)  
+    
+    \medskip
+    
+    [Laptop Multitasking Hinders Classroom Learning for Users and Nearby Peers](http://www.sciencedirect.com/science/article/pii/S0360131512002254)  
+    \medskip
+    
+    [In-class Laptop Use and its Effects on Student Learning](http://www.sciencedirect.com/science/article/pii/S0360131506001436)  
+    
+    \medskip
+    
+    [Facebook and Texting Made Me Do It](http://www.sciencedirect.com/science/article/pii/S0747563212003305)  
+    
+    \medskip
+    
+    [Examining the Impact of Off-task Multi-tasking with Technology on Real-time Classroom Learning](http://www.sciencedirect.com/science/article/pii/S0360131511002077)  
+
+
+
+
+## Expectations - Overall Learning Experience
+
+learning econometrics is similar to learning kung-fu, snowboard, or play guitar:
+
+1. you can not learn it just by looking at somebody else doing it or by listening to somebody else talking about it \newline I can help you but the main work has to to be done by you
+
+2. it is a frustrating, painful experience: [this](https://www.youtube.com/watch?v=OBxMsUxXcXU) is how everyone would like to learn things, but [this](https://www.youtube.com/watch?v=QNDhSYmmFro) is how it really is in the end
+
+
+
+## Expectations - Overall Learning Experience
+
+Ideal Learning Experience
+\begin{figure}
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, scale=0.67]{figures/lec01_kungfu.jpg}
+\end{figure}
+
+
+
+## Expectations - Overall Learning Experience
+
+Bit Less Ideal Learning Experience
+\begin{figure}
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, scale=0.67]{figures/lec01_kungfu_R.jpg}
+\end{figure}
+
+
+
+## Expectations - Overall Learning Experience
+
+Actual Learning Experience
+
+\includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=5cm]{figures/lec01_nokungfu_M.jpg}
+\hspace{0.25cm}
+\includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=5cm]{figures/lec01_nokungfu_W.jpg}
+
+
+
+## Expectations - Overall Learning Experience
+
+YMMV: here are two quotes evaluations by Eco 5316 students last year 
+
+\bigskip
+
+> "The class felt like a seminar in R-Studio instead of actually learning about Time Series. I recommend doing away with the programming part of the class and focus on teaching the theory and practice of the subject."
+
+\bigskip
+
+> "R is super awesome. I feel like it was sometimes hard to follow code days without a laptop, but generally looking through the code later after having been through it in class without a laptop definitely had its benefits. I felt like Professor Duras did a really good job putting all the topics and homeworks together and breaking up a lot of the parts with sharper learning curves. (e.g. like in assigning the DataCamp modules early on, and providing code for things like the rolling forecast which would have taken an incredibly long time to figure out on our own)."

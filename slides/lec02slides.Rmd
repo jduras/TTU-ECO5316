@@ -1,0 +1,847 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 2 Autoregressive (AR) processes
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex 
+    # keep_tex: yes
+    highlight: tango
+    fonttheme: professionalfonts
+    # incremental: true
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+---
+
+## Outline
+
+1. Features of Time Series
+2. Box-Jenkins methodology
+3. Autoregressive Model AR($p$)
+4. Autocorrelation Function (ACF) 
+5. Partial Autocorrelation Function (PACF)
+6. Portmanteau Test - Box-Pierce test and Ljung-Box test
+7. Information Criteria - Akaike (AIC) and Schwarz-Bayesian (BIC)
+8. Example: AR model for Real GNP growth rate
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 100)
+```
+
+```{r echo=FALSE}
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE}
+library(magrittr)
+library(tibble)
+library(dplyr)
+library(xts)
+library(tis)
+library(lubridate)
+library(ggplot2)
+library(scales)
+
+library(Quandl)
+Quandl.api_key('DLk9RQrfTVkD4UTKc7op')
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE}
+# define function for plots with recession shading - ggplot based
+myggplot <- function(mydata, mytitle="", mylabels){
+
+    rec.dates <-
+        nberDates() %>%
+        as.tibble() %>%
+        mutate_all(funs(as.character(.) %>% as.Date("%Y%m%d"))) %>%
+        as.data.frame()
+
+    dates <- as.Date(index(mydata))
+    
+    fst.year <- as.Date(floor_date(range(dates)[1], "5 years") - 365.25)
+    lst.year <- as.Date(ceiling_date(range(dates)[2], "5 years") - 365.25)
+    start.end <- c(fst.year, lst.year)
+    
+    if (is.null(ncol(mydata))) {
+        ggplot(mydata) +
+            geom_rect(data=rec.dates, aes(xmin=Start, xmax=End, ymin=-Inf, ymax=Inf), alpha=0.1) +
+            geom_line(aes(x=dates, y=mydata, colour="var"), size=0.5, color="blue") +
+            xlim(as.Date(range(dates))) +
+            theme_bw() +
+            theme(text=element_text(size=14), legend.position="bottom", legend.key=element_blank()) +
+            labs(title=mytitle, x="", y="")
+    }
+    else {
+        ggplot(mydata) +
+            geom_rect(data=rec.dates, aes(xmin=Start, xmax=End, ymin=-Inf, ymax=Inf), alpha=0.1) +
+            geom_line(aes(x=dates, y=mydata[,1], colour="var1"), size=1) +
+            geom_line(aes(x=dates, y=mydata[,2], colour="var2"), size=1) +
+            geom_line(aes(x=dates, y=mydata[,3], colour="var3"), size=1) +
+            geom_line(aes(x=dates, y=mydata[,4], colour="var4"), size=1) +
+            xlim(as.Date(range(dates))) +
+            scale_x_date(limits=start.end, breaks=date_breaks("5 years"), labels=date_format("%Y")) + 
+            theme_bw() +
+            theme(text=element_text(size=14), legend.position="bottom", legend.key=element_blank()) +
+            labs(title=mytitle, x="", y="") +
+            scale_colour_manual("",
+                                values=c("black","blue","red","green"),
+                                breaks=c("var1","var2","var3","var4"),
+                                labels=mylabels) +
+            guides(colour = guide_legend(override.aes = list(size=c(1,1,1,1))))
+    }
+#            geom_hline(yintercept=0, linetype="dotted") +
+}
+```
+
+
+Retail and Food Services Sales https://www.quandl.com/data/FRED/RSAFSNA
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+x <- Quandl("FRED/RSAFSNA", type="zoo")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(x, mytitle="Retail and Food Services Sales, in Millions of Dollars, Not Seasonally Adjusted", mylabels="")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(diff(log(x)), mytitle="Log-Change in Retail and Food Services Sales, Not Seasonally Adjusted", mylabels="")
+```
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+Real GDP https://www.quandl.com/data/FRED/GDPC1
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
+x <- Quandl("FRED/GDPC1", type="zoo")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(x, mytitle="U.S. Real GDP, Billion of 2009 Dollars, Seasonally Adjusted Annual Rate", mylabels="")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(diff(log(x)), mytitle="Log-Change in U.S. Real GDP, Seasonally Adjusted Annual Rate", mylabels="")
+```
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+Crude Oil Prices: https://www.quandl.com/data/FRED/DCOILWTICO
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
+# x <- Quandl("OPEC/ORB", type="zoo")
+x <- Quandl("FRED/DCOILWTICO", type="zoo")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(x, mytitle="Crude Oil Prices: West Texas Intermediate, Dollars per Barrel, Not Seasonally Adjusted", mylabels="")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(diff(log(x)), mytitle="Log-Change in Crude Oil Prices: West Texas Intermediate, Not Seasonally Adjusted", mylabels="")
+```
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+Cash Price of Corn (October 8, 2005) https://www.quandl.com/data/TFGRAIN/CORN
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=6}
+x <- Quandl("TFGRAIN/CORN.1", type="zoo")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(window(x, start=as.Date("2002-01-01"), end=as.Date("2006-01-01")), mytitle="Cash Price of Corn", mylabels="")
+```
+
+```{r, echo=FALSE ,warning=FALSE, message=FALSE, fig.height=3.5, fig.width=11}
+myggplot(diff(log(window(x, start=as.Date("2002-01-01"), end=as.Date("2006-01-01")))), mytitle="Log-Change in Cash Price of Corn", mylabels="")
+```
+
+
+
+## Trend, Seasonality, Structural Change, Volatility, Outliers
+
+- decomposition of time series into trend, seasonal and irregular component
+$$
+    y_t = \mu_t + \gamma_t + \varepsilon_t 
+$$
+where  
+\hspace{1cm} $y_t$ is the observed data  
+\hspace{1cm} $\mu_t$ is an slowly changing component (trend)  
+\hspace{1cm} $\gamma_t$ is periodic seasonal component  
+\hspace{1cm} $\varepsilon_t$ is irregular disturbance component  
+
+- classical approach - treat trend and seasonal components as deterministic functions
+
+- modern approach - $\mu_t$, $\gamma_t$, $\varepsilon_t$ all contain stochastic components
+
+- we will first look at the ways how to model the irregular component, and leave seasonal and trend components for later
+
+
+<!--
+## Preliminaries
+
+**Def:** A random variable $X: \Omega \rightarrow \mathbb R$ is a measurable function from the set of possible outcomes $\Omega$ to real numbers $\mathbb R$. 
+\medskip
+
+**Def:** Let $\mathbf{X}=(X_1,\ldots,X_n)$ be a vector of random variables $X_i: \Omega_i \rightarrow \mathbb R$. Let $P(\mathbf X \in A)$ be the probability that $\mathbf X \in A$ for $A \subset \mathbb R^n$. The *joint distribution function* $F_{\mathbf{X}}: \mathbb R^n \rightarrow \mathbb R$ is then 
+$$
+    F_{\mathbf{X}}(\mathbf{x}) = P(\mathbf X \leq x)
+$$
+If $\mathbf X$ is a continuous random vector and a joint probability density function $f_{\mathbf X}$ exists then
+$$
+    F_{\mathbf{X}}(\mathbf{x}) = \int_{-\infty}^{x_1} \ldots \int_{-\infty}^{x_n} f_{\mathbf X}(s_1,\ldots,s_n) ds_1 \ldots ds_n
+$$
+-->
+
+
+## Preliminaries
+
+**Def:** Stochastic process (or time series process) is a sequence of random variables $\{y_t\}$, observed time series is a particular realization of this process.
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_4.png}
+\end{figure}
+
+<!--
+Notation: $\{y_t\}$ times series, $y_t$ value at period $t$
+\bigskip
+-->
+
+
+
+## Preliminaries
+
+**Def:** Stochastic process $\{y_t\}$ is **strictly stationary** if joint distributions $F(y_{t_1},\ldots,y_{t_k})$ and $F(y_{{t_1}+l},\ldots, y_{{t_k}+l})$ are identical for all $l$, $k$ and all $t_1,\ldots,t_k$
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_6A.png}
+\end{figure}
+
+
+
+## Preliminaries
+
+**Def:** Stochastic process $\{y_t\}$ is **weakly stationary** if   
+(i) $E(y_t)=\mu$ for all $t$  
+(ii) $cov(y_t,y_{t-l})=\gamma_l$ for all $t$, $l$
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_6B.png}
+\end{figure}
+
+
+
+## Preliminaries
+
+\begin{figure}[h]
+    \includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/rivera/fig3_5.png}
+\end{figure}
+
+
+## Preliminaries
+
+- weak stationarity allows us to use sample moments to estimate population moments
+
+- for example, given a weakly stationary time series $\{y_1,y_2,\ldots,y_t\}$ the first moment $E(y_t)$ can be estimated using $\frac{1}{t}\sum_{j=1}^t y_j$ which would make little sense if $E(y_1) \neq E(y_2) \neq \ldots \neq E(y_t)$
+
+
+
+## Preliminaries
+
+**Def:** Stochastic process $\{\varepsilon_t\}$ is called a **white noise** if $\varepsilon_t$ are independently identically distributed with zero mean and finite variance: $E(\varepsilon_t)=0$, $Var(\varepsilon_t)=\sigma_\varepsilon^2 < \infty$, $cov(\varepsilon_t,\varepsilon_s)=0$ for all $t\neq s$.
+
+
+
+## Box-Jenkins Methodology
+
+Box-Jenkins methodology to modelling weakly stationary time series
+
+1. Identification
+2. Estimation
+3. Checking Model Adequacy
+
+
+## Box-Jenkins Methodology
+
+1. **Indentification**
+* examine **time series plots** of the data to determine if any transformations are necessary (differencing, logarithms) to get weakly stationary time series, examine series for trend (linear/nonlinear), periods of higher volatility, seasonal patterns, structural breaks, outliers, missing data, ...
+* examine **autocorrelation function (ACF)** and **partial autocorrelation function (PACF)** of the transformed data to determine plausible models to be estimated
+* use **Q-statistics** to test whether groups of autocorrelations are statistically significant
+
+
+## Box-Jenkins Methodology
+
+2. **Estimation**
+* estimate all models considered and select the best one - coefficients should be statistically significant, **information criteria (AIC, SBC)** should be low
+* model can be estimated using either **conditional likelihood method** or exact **likelihood method**
+
+
+## Box-Jenkins Methodology
+
+3. **Checking Model Adequacy**
+* perform **in-sample evaluation** of the estimated model 
+    * estimated coefficients should be consistent with the underlying assumption of stationarity
+    * inspect residuals - if the model was well specified residuals should be very close to white-noise
+        + plot residuals, look for outliers, periods in which the model does not fit the data well, evidence of structural change
+        + examine ACF and PACF of the residuals to check for significant autocorrelations
+        + use Q-statistics to test whether autocorrelations of residuals are statistically significant
+    * check model for parameter instability and structural change
+* perform **out-of-sample evaluation** of the model forecast
+
+
+## Box-Jenkins Methodology
+
+- we will now look at how the Box-Jenkins methodology works in case of a simple univariate time series model - an autoregressive model
+
+
+
+## AR($p$) Model
+
+- simple linear regression model with cross sectional data
+$$
+    y_i = \beta_0 + \beta_1 x_i + \epsilon_i
+$$
+- suppose we are dealing with time series rather than cross sectional data, so that
+$$
+    y_t = \beta_0 + \beta_1 x_t + \epsilon_t
+$$
+and if the explanatory variable is the lagged dependent variable $x_t=y_{t-1}$ we get
+$$
+    y_t = \beta_0 + \beta_1 y_{t-1} + \epsilon_t
+$$
+- main idea: past is prologue as it determines the present, which in turn sets the stage for future
+
+
+
+## AR($p$) Model
+
+- hourly time series for Akkoro Kamui's activities, before the fortress was built
+$$
+    \{ y_1, y_2, \ldots, y_t \} = \{ drink, drink, \ldots, drink \}
+$$
+
+- lots of time dependence here:
+$$
+    y_t = y_{t-1}
+$$
+
+
+
+## AR($p$) Model
+
+- time series process $\{y_t\}$ follows autoregressive model of order 1, AR(1), if
+$$
+    y_t = \phi_0 + \phi_1 y_{t-1} + \varepsilon_t
+$$
+or equivalently, using the lag operator
+$$
+    (1-\phi_1 L) y_t = \phi_0 + \varepsilon_t
+$$
+where $\{\varepsilon_t\}$ is a white noise with $E(\varepsilon_t)=0$ and $Var(\varepsilon_t)=\sigma_\varepsilon^2$
+<!-- 
+At period $t-1$ given information $\mathcal I_{t-1}=\{y_1,\ldots,y_{t-1}\}$ then  
+
+* conditional mean: $E_{t-1}(y_t)=E(y_t|\mathcal I_{t-1})=\phi_0+\phi_1 y_{t-1}$  
+
+* conditional variance: $Vay_{t-1}(y_t)=Var(y_t|\mathcal I_{t-1})=Var(\varepsilon_t)=\sigma_\varepsilon^2$  
+
+If $y_t$ is weakly stationary we have  
+
+* unconditional mean: $E(y_t)=\frac{\phi_0}{1-\phi_1}$  
+
+* unconditional variance: $Var(y_t)=\frac{\sigma_\varepsilon^2}{1-\phi_1^2}$  
+
+The necessary and sufficient condition for an AR(1) process to be weakly stationray is $|\phi_1|<1$.
+-->
+
+- more generally, time series $\{y_t\}$ follows an autoregressive model of order $p$, AR($p$), if
+$$
+    y_t = \phi_0 + \phi_1 y_{t-1} + \ldots + \phi_p y_{t-p} + \varepsilon_t
+$$
+or equivalently, using the lag operator
+$$
+    (1-\phi_1 L-\ldots-\phi_p L^p) y_t = \phi_0 + \varepsilon_t
+$$
+
+<!-- 
+At period $t-1$ given information $\mathcal I_{t-1}=\{y_1,\ldots,y_{t-1}\}$ we have  
+
+* conditional mean: $E_{t-1}(y_t)=E(y_t|\mathcal I_{t-1})=\phi_0+\phi_1 y_{t-1}+ \ldots + \phi_p y_{t-p}$  
+
+* conditional variance: $Vay_{t-1}(y_t)=Var(y_t|\mathcal I_{t-1})=Var(\varepsilon_t)=\sigma_\varepsilon^2$  
+
+If $y_t$ is weakly stationary we have
+
+* unconditional mean: $E(y_t)=\frac{\phi_0}{1-\phi_1-\ldots-\phi_p}$  
+
+* unconditional variance: $Var(y_t)=\frac{\sigma_\varepsilon^2 + 2 \sum_{j=1}^{p-1} \sum_{j=i+1}^p \phi_i \phi_j \gamma_{j-i} }{1-\phi_1^2-\ldots-\phi_p^2}$, where $\gamma_l = \phi_1 \gamma_{l-1} + \ldots + \phi_p \gamma_{l-p}$ for $l>0$
+-->
+
+
+## AR($p$) Model
+
+tools to determined the order $p$ of the autoregressive model given $\{y_t\}$
+
+- Autocorrelation Function (ACF) 
+- Partial Autocorrelation Function (PACF)
+- Portmanteau Test - Box-Pierce test and Ljung-Box test
+- Information Criteria - Akaike (AIC) and Schwarz-Bayesian (BIC)
+
+
+## Autocorrelation Function (ACF)
+
+- linear dependence between $y_t$ and $y_{t-l}$ is given by correlation coefficient $\rho_l$
+
+- for a weakly stationary time series process$\{y_t\}$ we have 
+$$
+    \rho_l = \frac{cov(y_t,y_{t-l})}{\sqrt{Var(y_t)Var(y_{t-l})}} = \frac{cov(y_t,y_{t-l})}{Var(y_t)} = \frac{\gamma_l}{\gamma_0}
+$$
+
+- **theoretical autocorrelation function** is $\{\rho_1, \rho_2, \ldots\}$
+
+- given a sample $\{y_t\}_{t=1}^T$ correlation coefficients $\rho_l$ can be estimated as 
+$$
+    \hat \rho_l = \frac{\sum_{t=l+1}^T (y_t - \bar y)(y_{t-l}-\bar y)}{\sum_{t=1}^T (y_t - \bar y)^2}
+$$
+where $\bar y = \frac{1}{T} \sum_{t=1}^T y_t$
+
+- **sample autocorrelation function** is $\{\hat \rho_1, \hat \rho_2, \ldots\}$ 
+
+
+
+## Autocorrelation function for AR($p$) model
+
+- if $p=1$ then $\gamma_0=Var(y_t)=\frac{\sigma_\varepsilon^2}{1-\phi_1^2}$ and also $\gamma_l = \phi_1 \gamma_{l-1}$ for $l>0$, thus
+\begin{equation}
+    \rho_l = \phi_1 \rho_{l-1}
+\end{equation}
+and since $\rho_0=1$, we get $\rho_l = \phi_1^l$
+
+- for weakly stationary $\{y_t\}$ it has to hold that $|\phi_1|<1$, theoretical ACF of a stationary AR(1) thus decays exponentially, in either direct or oscillating way
+
+
+
+## Autocorrelation function for AR($p$) model
+
+- if $p=2$ theoretical ACF for AR(2) satisfies second order difference equation
+\begin{equation}
+    \rho_l = \phi_1 \rho_{l-1} + \phi_2 \rho_{l-2}  \label{eq:ACF_AR2}
+\end{equation}
+or equivalently using the lag operator $(1-\phi_1 L - \phi_2 L^2)\rho_l = 0$
+
+- solutions of the associated **characteristic equation**
+$$
+    1 -\phi_1 x - \phi_2 x^2=0
+$$
+are $x_{1,2} = -\frac{\phi_1 \pm \sqrt{\phi_1^2 + 4\phi_2}}{2 \phi_2}$
+
+- their inverses $\omega_{1,2}=1/x_{1,2}$ are called the **characteristic roots** of the AR(2) model
+
+- if $D=\phi_1^2 + 4\phi_2 >0$ then $\omega_1,\omega_2$ are real numbers, and theoretical ACF is a combination of two exponential decays
+
+- if $D<0$ characteristic roots are complex conjugates, and theoretical ACF will resemble a dampened sine wave
+
+- for weak stationarity all characteristic roots need to lie inside the unit circle, that is $|\omega_i|<1$ for $i=1,2$
+
+- from equation (\ref{eq:ACF_AR2}) we get $\rho_1=\frac{\phi_1}{1-\phi_2}$ and $\rho_l = \rho_{l-1} + \phi_2 \rho_{l-2}$ for $l\geq 2$
+
+
+## Autocorrelation function for AR($p$) model
+
+- in general, theoretical ACF for AR($p$) satisfies the difference equation of order $p$
+\begin{equation}
+    (1-\phi_1 L-\ldots-\phi_p L^p)\rho_l = 0 
+\end{equation}
+
+- characteristic equation of the AR($p$) model is thus $1-\phi_1 x - \ldots - \phi_p x^p=0$
+
+- AR($p$) process is weakly stationary if the characteristic roots (i.e. inverses of the solutions of the characteristic equation) lie inside of the unit circle
+
+- plot of the theoretical ACF of a weakly stationary AR($p$) process will show a mixture of exponential decays and dampened sine waves
+
+
+## Partial autocorrelation function (PACF)
+
+- consider the following system of AR models that can be estimated by OLS
+$$
+\begin{aligned}
+    y_t &= \phi_{0,1} + \phi_{1,1} y_{t-1} + e_{1,t} \\
+    y_t &= \phi_{0,2} + \phi_{1,2} y_{t-1} + \phi_{2,2} y_{t-2} + e_{2,t} \\
+    y_t &= \phi_{0,3} + \phi_{1,3} y_{t-1} + \phi_{2,3} y_{t-2} + \phi_{3,3} y_{t-3} + e_{3,t} \\
+        & \vdots    
+\end{aligned}
+$$
+
+ - estimated coefficients $\hat \phi_{1,1}, \hat \phi_{2,2}, \hat \phi_{3,3}, \ldots$ form the sample **partial autocorrelation function** (PACF)
+ 
+ - if the time series process $\{y_t\}$ comes from an AR($p$) process, sample PACF should have $\hat \phi_{j,j}$ close to zero for $j>p$
+ 
+- for an AR($p$) with Gaussian white noise as $T$ goes to infinity $\hat \phi_{p,p}$ converges to $\phi_p$ and $\hat \phi_{l,l}$ converges to 0 for $l>p$, in addition the asymptotic variance of $\hat \phi_{l,l}$ for $l>p$ is $1/T$
+
+- this is the reason why the interval plotted by R in the plot of PACF is $0 \pm 2/\sqrt T$
+
+- order of the AR process can thus be determined by finding the lag after which PACF cuts off to zero
+
+
+## ACF and PACF for AR$(1)$ model
+
+```{r, echo=FALSE}
+    mymaxlag <- 20
+    mynobs <- 500
+```
+
+AR(1) with $\phi_1=0.7$
+```{r, echo=FALSE}
+    phi <- c(0.7,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,0), ar=phi), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,0,1))
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## ACF and PACF for AR$(1)$ model
+
+AR(1) with $\phi_1=-0.7$
+```{r, echo=FALSE}
+    phi <- c(-0.7,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,0), ar=phi), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## ACF and PACF for AR$(2)$ model
+
+AR(2) with $\phi_1=0.2$, $\phi_2=0.7$
+```{r, echo=FALSE}
+    phi <- c(0.2,0.7,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,0), ar=phi), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## ACF and PACF for AR$(2)$ model
+
+AR(2) with $\phi_1=1.2$, $\phi_1=-0.7$
+```{r, echo=FALSE}
+    phi <- c(1.2,-0.7,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,0), ar=phi), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=6}
+    par(mfrow=c(2,2), cex=1, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+    acf(y.sim1, type="correlation", lag=mymaxlag, ylab="sample ACF", main="")
+    acf(y.sim1, type="partial", lag=mymaxlag, ylab="sample PACF", main="")
+```
+
+
+## ACF and PACF for AR$(p)$ model
+
+- interactive overview of ACF and PACF for simulated AR($p$) models is  [\textcolor{red}{here}](https://janduras.shinyapps.io/ARMAsim/lec02ARMAsim.Rmd)
+
+
+
+## Portmanteau Test
+
+- to test $H_0: \rho_1=\ldots=\rho_m=0$ against an alternative hypothesis $H_a: \rho_j\neq 0$ for some $j \in \{1,\ldots,m\}$ following two statistics can be used:
+
+    Box-Pierce test
+    $$
+        Q^*(m) = T \sum_{l=1}^m \hat \rho_l^2
+    $$
+    
+    Ljung-Box test
+    $$
+        Q(m) = T(T+2) \sum_{l=1}^m \frac{\hat \rho_l^2}{T-l}
+    $$
+
+- the null hypothesis is rejected at $\alpha$\% level if the above statistics are larger than the $100(1-\alpha)$th percentile of chi-squared distribution with $m$ degrees of freedom
+
+- note: Ljung-Box statistics tends to perform better in smaller samples
+
+- the general recommendation is to use $m \approx \ln T$, but this depends on application
+
+- e.g.: for monthly data with a seasonal pattern it makes sense to set $m$ to 12, 24 or 36, and for quarterly data with a seasonal pattern $m$ to 4, 8, 12
+
+
+
+## Portmanteau Test
+
+- these tests are also used for in-sample evaluation of model adequacy 
+
+- if the model was correctly specified Ljung-Box $Q(m)$ statistics for the residuals of the estimated model follows chi-squared distribution with $m-g$ degrees of freedom where $g$ is the number of estimated parameters 
+
+- for AR($p$) that includes a constant $g=p+1$
+
+
+
+## Information Criteria
+
+- in practice, there will be often several competing models that would be considered
+
+- if these models are adequate and with very similar properties based on ACF, PACF, and Q statistics for residuals, information criteria can help decide which one is preferred
+
+- main idea: information criteria combine the goodness of fit with a penalty for using more parameters
+
+
+
+## Information Criteria
+
+- two commonly used information criteria:
+
+    **Akaike Information Criterion (AIC)** 
+    $$
+        AIC = -\frac{2}{T} \log L  + \frac{2}{T}n
+    $$
+    
+    **Schwarz-Bayesian information criterion (BIC)**
+    $$
+        BIC = -\frac{2}{T} \log L  + \frac{\log T}{T}n
+    $$
+    in both expressions above $T$ is the sample size, $n$ is the number of parameters in the model, $L$ is the value of the likelihood function, and $\log$ is the natural logarithm
+
+- AIC or BIC of competing models can be compared and the model that has the smallest AIC or BIC value is preferred
+
+- BIC will always select a more parsimonious model with fewer parameters than the AIC because $\log T > 2$ and each additional parameter is thus penalized more heavily
+
+
+
+## Information Criteria
+
+- fundamental difference - AIC tries to select the model that most adequately approximates unknown complex data generating process with infinite number of parameters
+
+- this true process is never in the set of candidate models that are being considered
+
+- BIC assumes that the true model is among the set of considered candidates and tries to identify it
+
+    - BIC performs better than AIC in large samples - it is asymptotically consistent while AIC is biased toward selecting an overparameterized model
+
+- in small samples AIC can perform better than BIC
+
+
+
+## Information Criteria
+
+- some software packages report other information criteria in addition to AIC and BIC
+
+- **Hannan-Quinn information criterion (HQ)**
+$$
+    HQ = -\frac{2}{T} \log L  + \frac{2 \log (\log T)}{T} n
+$$
+ - **corrected Akaike Information Criterion (AICc)** which is AIC with a correction for finite sample sizes to limit overfitting; for a  univariate linear model with normal residuals
+$$
+    AICc = AIC + \frac{2(n+1)(n+2)}{T-n-2}
+$$
+where $T$ is the sample size and $n$ is the number of estimated parameters
+
+ 
+ 
+<!--
+Note: for Gaussian AR(1) model
+$$
+    \log L 
+    = \log \Big( \prod_{t=1}^T \frac{1}{\sqrt{2\pi}\hat\sigma_a} e^{-\frac{\hat a_t^2}{2\hat\sigma_a^2}} \Big)
+    = - \sum_{t=1}^T \Big( \log \sqrt{2\pi} + \log \hat\sigma_a + \Big(\frac{\hat a_t}{2\hat\sigma_a^2} \Big) \Big)
+    = - \frac{1}{2} \Big( T \log (2\pi) + T \log \hat\sigma_a^2 + \frac{1}{\hat\sigma_a^2} \sum_{t=1}^T \hat a_t^2 \Big)
+$$
+thus
+$$
+    AIC = 1+\log (2\pi) + \log \hat\sigma_a^2 + \frac{2}{T}n
+$$
+and
+$$
+    BIC = 1+\log (2\pi) + \log \hat\sigma_a^2 + \frac{\log T}{T}n
+$$
+-->
+
+
+
+## Example: AR model for Real GNP growth rate
+
+- an example showing the steps of estimating and checking a model for the growth rate of GNP can be found here: [lec03GNP.zip](http://myweb.ttu.edu/jduras/files/teaching/e5316/lec03GNP.zip) \smallskip
+
+    ```{r mysize=TRUE, size='\\scriptsize', message=FALSE}
+    # load magrittr package for pipe operators
+    library(magrittr)
+    ```
+    
+    ```{r mysize=TRUE, size='\\scriptsize'}
+    # import the data on the growth rate of GDP, convert it into time series xts object
+    y <- scan(file="http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-gnp4791.txt") %>%
+           ts(start=c(1947,2), frequency=4) 
+    ```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+str(y)
+head(y)
+tail(y)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+- plot using base package
+    ```{r mysize=TRUE, size='\\scriptsize', fig.height=4}
+    plot(y, xlab="", ylab="", main="Real GNP growth rate")
+    ```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+- plot using `ggplot2` package
+    ```{r mysize=TRUE, size='\\scriptsize', warnings = FALSE, message = FALSE, fig.height=3.5}
+    # load ggplot2
+    library(ggplot2)
+    # load ggfortify to be able to plot time series and output from acf using autoplot
+    library(ggfortify)
+    # define deafult theme to be B&W
+    theme_set(theme_bw())
+    # plot
+    autoplot(y) + 
+        labs(x="", y="", title="Real GNP growth rate") 
+    ```
+
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize', fig.height=2.75}
+# plot ACF and PACF for y up to lag 24
+y %>% as.data.frame() %>% acf(type="correlation",lag=24, plot=FALSE) %>% autoplot()
+y %>% as.data.frame() %>% acf(type="partial",lag=24, plot=FALSE) %>% autoplot()
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# estimate an AR(1) model - there is only one significant coefficient in the PACF plot for y
+m1 <- arima(y, order=c(1,0,0))
+# show the structure of object m1
+str(m1)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# print out results for m1
+m1
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# diagnostics for AR(1) model - there seems to be a problem with remaining serial correlation at lag 2
+ggtsdiag(m1, gof.lag=16)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# estimate an AR(2) model to deal with the problem of remaining serial correlation at lag 2
+m2 <- arima(y, order=c(2,0,0))
+# diagnostics for AR(2) model shows that problem with remaining serial correlation at lag 2 is gone
+ggtsdiag(m2, gof.lag=16)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# estimate an AR(3) model since PACF for lag 2 and 3 are comparable in size
+m3 <- arima(y, order=c(3,0,0))
+# diagnostics for the AR(3) model
+ggtsdiag(m3, gof.lag=16)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# use AIC to choose order p of the AR model
+m <- ar(y, method="mle")
+str(m)
+# AIC prefers AR(3) to AR(2)
+m$order
+m$aic
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# BIC prefers AR(1) to AR(2) or AR(3)
+# in general BIC puts a larger penalty on additional coefficients than AIC
+BIC(m1)
+BIC(m2)
+BIC(m3)
+```
+
+
+
+## Example: AR model for Real GNP growth rate
+
+```{r mysize=TRUE, size='\\scriptsize'}
+# Ljung-Box test - for residuals of a model adjust the degrees of freedom m 
+# by subtracting the number of parameters g
+# this adjustment will not make a big difference if m is large but matters if m is small
+
+m2.LB.lag8 <- Box.test(m2$residuals, lag=8, type="Ljung")
+m2.LB.lag8
+1-pchisq(m2.LB.lag8$statistic, df=6)
+
+m2.LB.lag12 <- Box.test(m2$residuals, lag=12, type="Ljung")
+m2.LB.lag12
+1-pchisq(m2.LB.lag12$statistic, df=10)
+```
