@@ -1,0 +1,29 @@
+---
+title: '**Homework 2**'
+subtitle: |
+  | Eco 5316 Time Series Econometrics
+  | Spring 2019
+  | Due: see below
+urlcolor: magenta
+linkcolor: magenta
+output: pdf_document
+---
+
+\renewcommand{\baselinestretch}{1.15} \selectfont
+
+
+## **Problem 1** (due January 25, 11:55pm)
+
+Take following two courses on Datacamp
+
+- [Data Manipulation in R with dplyr](https://www.datacamp.com/courses/dplyr-data-manipulation-r-tutorial)
+- [Data Visualization with ggplot2 (Part 1)](https://www.datacamp.com/courses/data-visualization-with-ggplot2-1)
+
+
+
+## **Problem 1** (due February 1, 11:55pm)
+
+Take following two courses on Datacamp
+
+- [Foundations of Functional Programming with purrr](https://www.datacamp.com/courses/foundations-of-functional-programming-with-purrr)
+- [Working with Data in the Tidyverse](https://www.datacamp.com/courses/working-with-data-in-the-tidyverse)

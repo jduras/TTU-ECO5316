@@ -1,0 +1,573 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 5 Autoregressive Moving Average (ARMA) processes
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex 
+    # keep_tex: yes
+    highlight: tango
+    fonttheme: professionalfonts
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## ARMA($p,q$) model
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 100)
+```
+
+```{r echo=FALSE}
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE,  mysize=TRUE, size='\\scriptsize')
+```
+
+- AR or MA models may require a high-order model and thus many parameters to adequately describe the dynamic structure of the data
+
+- Autoregressive Moving-Average (ARMA) models allow to overcome this and allow parsimonious model specification with a small number of parameters 
+
+
+
+## ARMA($p,q$) model
+
+- suppose that $\{\varepsilon_t\}$ is a white noise, time series process $\{y_t\}$ follows an ARMA(1,1) if
+$$
+    y_t = \phi_0 + \phi_1 y_{t-1} + \varepsilon_t + \theta_1 \varepsilon_{t-1}
+$$
+or equivalently, using the lag operator if
+$(1-\phi_1 L) y_t = \phi_0 + (1+\theta_1 L) \varepsilon_t$
+
+<!--
+If $y_t$ is weakly stationary than  
+- unconditional mean: $E(y_t)=\frac{\phi_0}{1-\phi_1}$  
+- unconditional variance: $Var(y_t)=\frac{(1+2\phi_1\theta_1+\theta_1^2)\sigma_a^2}{1-\phi_1^2}$  
+- ACF: given by $\rho_1 = \phi_1 + \frac{\theta_1 \sigma_a^2}{\gamma_0}$ and $\rho_l=\phi_1 \rho_{l-1}$ for $l>1$, where $\gamma_0$ is the unconditional variance  
+- PACF: similar to MA(1), but exponential decay starts with lag 2 not lag 1  
+-->
+
+- more generally, time series process $\{y_t\}$ follows an ARMA$(p,q)$ if
+$$
+    y_t = \phi_0 + \sum_{i=1}^p \phi_i y_{t-i} + \varepsilon_t + \sum_{i=i}^q \theta_q \varepsilon_{t-q}
+$$
+or, using the lag operator $(1-\phi_1 L-\ldots-\phi_p L^p) y_t = \phi_0 + (1+\theta_1 L+\ldots+\theta_q L^q) \varepsilon_t$
+
+
+
+## Autocorrelation function for ARMA($p,q$) model
+
+- recall:  
+    - for AR($p$): ACF dies out slowly, PACF drops to zero suddenly after lag $p$  
+    - for MA($q$): ACF drops to zero immediately after lag $q$, PACF dies out slowly  
+
+- if neither ACF nor PACF drop to zero abruptly we are dealing with and ARMA model
+
+- in this case both ACF and PACF die out slowly in exponential, oscilating exponential of dampened sine wave pattern
+
+- an overview of ACF and PACF for simulated AR$(p)$, MA$(q)$ and ARMA$(p,q)$ models can be found here:  
+[https://janduras.shinyapps.io/ARMAsim/lec02ARMAsim.Rmd](https://janduras.shinyapps.io/ARMAsim/lec02ARMAsim.Rmd)
+
+
+
+## Autocorrelation function for ARMA($p,q$) model
+
+\tiny
+
+ process                              ACF                                                   PACF
+----------- ------------              ------------------------                              --------------------------
+white noise                           $\rho_l=0$ for all $l>0$                              $\phi_{l,l}=0$ for all $l$
+   AR(1)    $\phi_1>0$                exponential decay, $\rho_l=\phi_1^l$                  $\phi_{l,l}=\phi_1$, $\phi_{l,l}=0$ for $l>1$ 
+            $\phi_1<0$                oscillating decay, $\rho_l=\phi_1^l$                  $\phi_{l,l}=\phi_1$, $\phi_{l,l}=0$ for $l>1$
+   AR(2)    $\phi_1^2+4\phi_2>0$      mixture of two exponential decays                     $\phi_{1,1}\neq 0$, $\phi_{2,2}\neq 0$, $\phi_{l,l}=0$ for $l>2$
+            $\phi_1^2+4\phi_2<0$      dampened sine wave                                    $\phi_{1,1}\neq 0$, $\phi_{2,2} < 0$, $\phi_{l,l}=0$ for $l>2$
+   AR($p$)                            decays toward zero in dampened sine                   $\phi_{l,l} = 0$ for $l>p$
+                                      wave pattern or oscillating pattern             
+   MA(1)    $\theta_1>0$              $\rho_1>0$, $\rho_l=0$ for all $l>1$                  oscillating decay, $\phi_{1,1}>0$, $\phi_{2,2}<0$, ...
+            $\theta_1<0$              $\rho_1<0$, $\rho_l=0$ for all $l>1$                  exponential decay, $\phi_{l,l}<0$ for all $l$
+   MA(2)                              $\rho_1 \neq 0, \rho_2 \neq 0$, $\rho_l=0$ for $l>2$  mixture of two direct or oscillatory 
+                                                                                            exponential decays, or a dampened wave
+   MA($q$)                            $\rho_l = 0$ for $l>q$                                decays toward zero, may oscillate or have
+                                                                                            a shape of a dampened sine wave
+ARMA(1,1)   $\phi_1>0$, $\theta_1>0$  exponential decay                                     oscilating exponential decay
+            $\phi_1>0$, $\theta_1<0$  exponential decay after lag 1                         exponential decay
+            $\phi_1<0$, $\theta_1>0$  oscillating exponential decay                         oscillating exponential decay
+            $\phi_1<0$, $\theta_1<0$  oscillating exponential decay                         exponential decay
+ARMA($p,q$)                           decay (direct or oscillatory) after lag $p$           decay (direct or oscillatory) after lag $q$
+                                      or dampened sine wave                                or dampened sine wave
+
+
+
+## Autocorrelation function for ARMA($p,q$) model
+
+\scriptsize
+
+```{r, echo=FALSE}
+    mymaxlag <- 12
+    mynobs <- 500
+```
+
+\vspace{+0.15cm}
+**ARMA(1,1) with $\phi_1=0.5$, $\theta_1=0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.5,0,0)
+    theta <- c(0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.65}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,0,1))
+    plot(0:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(1,1) with $\phi_1=0.5$, $\theta_1=-0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.5,0,0)
+    theta <- c(-0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.65}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(1,1) with $\phi_1=-0.5$, $\theta_1=0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(-0.5,0,0)
+    theta <- c(0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.65}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(1,1) with $\phi_1=-0.5$, $\theta_1=-0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(-0.5,0,0)
+    theta <- c(-0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.65}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(0:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(1:mymaxlag, ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+$_{}$
+
+<!--
+
+\vspace{-0.15cm}
+**ARMA(2,1) with $\phi_1=0.5$, $\phi_1=-0.4$, $\theta_1=0.9$**
+\vspace{-0.15cm}
+
+```{r, echo=FALSE}
+    phi <- c(0.5,-0.4,0)
+    theta <- c(0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,0,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(2,1) with $\phi_1=0.5$, $\phi_1=-0.4$, $\theta_1=-0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.5,-0.4,0)
+    theta <- c(-0.9,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(2,1) with $\phi_1=-0.5$, $\phi_1=0.4$, $\theta_1=0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(-0.5,0.2,0)
+    theta <- c(0.5,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(2,1) with $\phi_1=-0.5$, $\phi_1=0.4$ $\theta_1=-0.9$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(-0.5,0.2,0)
+    theta <- c(-0.5,0,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+
+
+\vspace{-0.15cm}
+**ARMA(2,2) with $\phi=(0.9,-0.7)'$, $\theta_1=(-0.5,0.5)'$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.9,-0.7,0)
+    theta <- c(-0.5,0.5,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(2,2) with $\phi=(0.2,0.6)'$, $\theta_1=(-0.3,-0.4)'$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.2,0.6,0)
+    theta <- c(-0.3,0.4,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,0,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+**ARMA(2,2) with $\phi=(0.5,0.1)'$, $\theta_1=(0.9,0.9)'$**
+```{r, echo=FALSE}
+    phi <- c(0.5,0.1,0)
+    theta <- c(0.9,0.9,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+
+\vspace{-0.15cm}
+**ARMA(2,2) with $\phi=(0.5,0.1)'$, $\theta_1=(0.1,-0.9)'$**
+\vspace{-0.15cm}
+```{r, echo=FALSE}
+    phi <- c(0.5,0.1,0)
+    theta <- c(-0.1,-0.9,0)
+    y.sim1 <- arima.sim(model=list(order = c(length(phi),0,length(theta)), ar=phi, ma=theta), n=mynobs)
+```
+
+```{r, echo=FALSE, fig.height=1.5}
+    par(mfrow=c(1,2), cex=0.5, mar=c(2,4,1,1))
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=FALSE), type='h', xlab="", ylab="theoretical ACF", main="")
+    plot(ARMAacf(ar=phi, ma=theta, lag.max=mymaxlag, pacf=TRUE), type='h', xlab="", ylab="theoretical PACF", main="")
+```
+-->
+
+
+<!--
+## Estimation of AR($p$), MA($q$), and ARMA($p,q$) models
+
+- two likelihood based methods  
+    - conditional likelihood method - assumes $\varepsilon_t=0$ for $t\leq 0$  
+    - exact likelihood method  - estimates $\varepsilon_t=0$ for $t\leq 0$ together with all other parameters of the model
+ 
+- exact likelihood method is more computationally intensive, but is preferred
+
+- in large samples the difference between the results of the two methods is small
+-->
+
+
+## A Couple of  Notes
+
+- in practice, we rarely find a data series that precisely conforms to a theoretical ACF or PACF
+
+- consequently, there will be some ambiguities when using the Box-Jenkins methodology
+
+- order $(p,q)$ of an ARMA model may depend on the frequency of the series:
+    - daily returns of a market index often show some minor serial correlations
+    - monthly returns of the index may not contain any significant serial correlation
+
+
+
+
+## Stationarity
+
+- time series $\{y_t\}$ is stationary if it can be represented as a finite order moving average process or a convergent infinite order moving average process
+
+- for an ARMA model to have a convergent MA representation, and thus be stationary, the inverse roots of the polynomial $1-\phi_1 L-\ldots-\phi_p L^p$ must lie inside the unit circle
+
+- for example, for AR(1) the root of $1-\phi_1 x = 0$ is $x = \frac{1}{\phi_1}$ its inverse $\omega = \phi_1$ the condition is thus $|\phi_1|<1$
+
+
+
+## Invertibility
+
+- time series $\{y_t\}$ is invertible if it can be represented as a finite order autoregressive process or a convergent infinite order autoregressive process
+
+- for an ARMA model to have a convergent AR representation, and thus be invertible, the inverse roots of the polynomial $1+\theta_1 L+\ldots+\theta_q L^q$ must lie inside the unit circle
+
+- for example, for MA(1) the root of $1+\theta_1 x = 0$ is $x = -\frac{1}{\theta_1}$ its inverse $\omega = -\theta_1$ the condition is thus $|\theta_1|<1$
+
+- to see why this is necessary note that by repeated substitution
+\begin{align}
+    y_t &= \varepsilon_t + \theta_1 \varepsilon_{t-1} \\
+        &= \varepsilon_t + \theta_1 (y_{t-1} - \theta_1 \varepsilon_{t-2}) \\
+        &= \varepsilon_t + \theta_1 y_{t-1} - \theta_1^2 (y_{t-2}-\theta_1 \varepsilon_{t-3}) \\
+        &= \varepsilon_t + \theta_1 y_{t-1} - \theta_1^2 y_{t-2} + \theta_1^3 (y_{t-3} - \theta_1 \varepsilon_{t-4}) \\
+        &= \ldots 
+        % &= \varepsilon_t - \sum_{i=1}^\infty (-1)^i \theta_1^i y_{t-i}
+\end{align}
+we obtain
+$$
+    \Big(1 + \sum_{i=1}^\infty (-1)^i \theta_1^i L^i \Big) y_t = \varepsilon_t
+$$
+which requires $|\theta_1|<1$
+
+
+
+## Three Representations for an ARMA Model
+
+1. standard representation as ARMA($p,q$)
+
+2. moving average representation of ARMA($p,q$)
+
+3. autoregressive representation of ARMA($p,q$)
+
+
+
+## Three Representations for an ARMA Model
+
+1. standard representation as ARMA($p,q$) \medskip
+
+    compact, useful for estimation, and computing forecasts
+    $$
+     \phi(L) y_t = \phi_0 + \theta(L) \varepsilon_t
+    $$
+    where $\phi(L) = 1 - \sum_{i=1}^p \phi_i L^i$ and $\theta(L) = 1 + \sum_{i=1}^q \theta_i L^i$ 
+
+
+## Three Representations for an ARMA Model
+
+2. moving average representation of ARMA($p,q$) \medskip
+
+    if all inverse roots of the equation $\phi(L)=0$ lie inside of the unit circle then $\{y_t\}$ is weakly stationary and can be written as
+    $$
+        y_t =  \frac{\phi_0 + \theta(L)}{\phi(L)} \varepsilon_t \equiv \frac{\phi_0}{\phi(1)} + \psi(L) \varepsilon_t
+    $$
+    for AR(1) we for example get 
+    $$
+        y_t = \frac{1}{1-\phi_1 L} (\phi_0 + \varepsilon_t) = \frac{\phi_0}{1-\phi_1} + \sum_{l=0}^\infty \phi_1^l \varepsilon_{t-l}
+    $$
+    
+    coefficients $\{\psi_i\}$ are referred to as the impulse response function of the ARMA model
+
+
+
+## Three Representations for an ARMA Model
+
+3. autoregressive representation of ARMA($p,q$) \medskip
+
+    if all roots of the equation $\theta(L)=0$ lie outside of the unit circle then $\{y_t\}$ is invetible and can be written as
+    $$
+        \varepsilon_t = \frac{\phi_0 + \phi(L)}{\theta(L)} y_t \equiv \frac{\phi_0}{\theta(1)} + \pi(L) y_t
+    $$
+    or equivalently
+    $$
+        y_t = \frac{\phi_0}{1+\theta_1+\ldots+\theta_q} + \sum_{i=l}^\infty \pi_l y_{t-l} + \varepsilon_t
+    $$
+    
+    coefficients $\{\pi_i\}$ are referred to as $\pi$ weights of the ARMA model
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r}
+library(tidyverse)
+library(tidyquant)
+library(timetk)
+library(ggfortify)
+library(forecast)
+
+theme_set(theme_bw())
+```
+
+```{r}
+# get quarterly Total Wages and Salaries in Texas, Thousands of Dollars, Seasonally Adjusted Annual Rate
+wTX_raw <- tq_get("TXWTOT", get = "economic.data", from = "1980-01-01", to = "2018-12-31")
+
+# note that the sample is quite small
+wTX_raw
+
+# log change, a stationary transformation
+wTX_tbl <- wTX_raw %>%
+    rename(wTX = price) %>%
+    mutate(dlwTX = log(wTX) - lag(log(wTX))) 
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=5}
+wTX_tbl %>%
+    tk_xts(date_var = date, select = c("wTX", "dlwTX")) %>%
+    autoplot() + 
+        labs(x = "", y = "", 
+             title = "Wages and Salaries in Texas, Seasonally Adjusted Annual Rate") +
+        facet_wrap(~plot_group, ncol = 1, scales = "free", 
+                   labeller = labeller(plot_group = c(dlwTX = "Log Change", 
+                                                      wTX = "Thousands of Dollars"))) +
+        theme(strip.text = element_text(hjust = 0))
+```
+
+
+     
+         
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=2.5}
+dlwTX <- wTX_tbl %>%
+    filter(!is.na(dlwTX)) %>%
+    tk_xts(date_var = date, select = dlwTX) 
+
+nlags <- 24
+ggAcf(dlwTX, lag.max = nlags)
+ggPacf(dlwTX, lag.max = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r}
+m1 <- Arima(dlwTX, order = c(0,0,2))
+m1
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=7}
+ggtsdiag(m1, gof.lag = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r}
+m2 <- Arima(dlwTX, order = c(2,0,0))
+m2
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=7}
+ggtsdiag(m2, gof.lag = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=5}
+# z-statistics for coefficients of AR(2) model - phi1 is not signifficant at any level
+m2$coef/sqrt(diag(m2$var.coef))
+# p values
+(1-pnorm(abs(m2$coef)/sqrt(diag(m2$var.coef))))*2
+
+# estimate ARMA model with a restriction on a parameter
+m2.rest <- Arima(dlwTX, order = c(2,0,0), fixed = c(0,NA,NA))
+m2.rest
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=7}
+ggtsdiag(m2.rest, gof.lag = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=5}
+# find the best ARIMA model based on either AIC, AICc or BIC
+m3 <- auto.arima(dlwTX, ic="aicc", seasonal=FALSE, stationary=TRUE)
+m3
+# by default auto.arima uses stepwise approach and might end up in a "local minimum" like m3 above
+m4 <- auto.arima(dlwTX, ic="aicc", seasonal=FALSE, stationary=TRUE, stepwise=FALSE, approximation=FALSE)
+m4
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=7}
+ggtsdiag(m3, gof.lag = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=7}
+ggtsdiag(m4, gof.lag = nlags)
+```
+
+
+
+## Example: Total Wages and Salaries in Texas
+
+```{r fig.height=5}
+# check staionarity and invertibility of the estimated model - plot inverse AR and MA roots
+autoplot(m4)
+```

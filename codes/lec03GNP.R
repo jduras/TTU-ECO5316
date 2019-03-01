@@ -1,17 +1,15 @@
 
 # set working directory
 # setwd("C:/User/Courses/E5316/Codes")
-# setwd("C:/Drive/Dropbox/User/Academic/06TexasTech/02Teaching/06 5316 Time Series Econometrics Spring 2017/Codes")
 
 # import the data on the growth rate of GDP, convert it into time series xts object
 #  this data can be downloaded from here
 #  http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-gnp4791.txt
 
 library(magrittr)
-library(xts)
+library(forecast)
 library(ggplot2)
 library(ggfortify)
-library(forecast)
 library(scales)
 
 y <- scan(file = "http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-gnp4791.txt") %>%
@@ -36,7 +34,7 @@ autoplot(y) +
 
 
 # plot ACF and PACF for y up to lag nlags
-nlags <- 40
+nlags <- 20
 ggAcf(y, lag.max = nlags) + labs(title="Real GNP growth rate")
 ggPacf(y, lag.max = nlags) + labs(title="Real GNP growth rate")
 

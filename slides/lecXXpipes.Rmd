@@ -22,7 +22,7 @@ knitr::knit_hooks$set(mysize = function(before, options, envir) {
 
 ```{r setup, include=FALSE}
 options(width=80)
-knitr::opts_chunk$set(echo = TRUE,  mysize=TRUE, size='\\small')
+knitr::opts_chunk$set(echo = TRUE, messgae = FALSE, warning = FALSE, mysize=TRUE, size='\\small')
 ```
 
 ## Introduction
@@ -186,12 +186,12 @@ knitr::opts_chunk$set(echo = TRUE,  mysize=TRUE, size='\\small')
 
 ## Other Tools From `magrittr`
 
-- `%T>%` works like `%>%` except that it returns the left-hand side instead of the right-hand side
+- `%T>%` works like `%>%` but returns the left-hand side, not the right-hand side
     ```{r fig.height=4}
-    rnorm(100) %>%
-        matrix(ncol = 2) %T>%
-        plot() %>%
-        str()
+    library(tibble)
+    tibble(x = rnorm(100), y = rnorm(100)) %T>%
+        plot() %$%
+        cor(x, y)
     ```
 
 
