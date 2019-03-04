@@ -1,0 +1,801 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 7 Nonstationary Time Series
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex
+    # keep_tex: yes
+    highlight: tango
+    fonttheme: professionalfonts
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+---
+
+## Nonstationary Time Series
+
+```{r echo=FALSE}
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before)
+    return(options$size)
+})
+```
+
+\fontsize{9}{10}\selectfont
+
+a lot of time series in economics and finance are not weakly stationary and instead
+
+- show linear or exponential trend
+- show stochastic trend - grow or fall over time or meander without a constant long-run mean
+- show increasing variance over time
+
+examples
+
+- [\textcolor{magenta}{GDP}](https://fred.stlouisfed.org/series/GDPC1), [\textcolor{magenta}{consumption}](https://fred.stlouisfed.org/series/PCECC96), [\textcolor{magenta}{investment}](https://www.quandl.com/data/FRED/GPDI), [\textcolor{magenta}{exports}](https://www.quandl.com/data/FRED/EXPGSC1), [\textcolor{magenta}{imports}](https://www.quandl.com/data/FRED/EXPGSC1), ...
+- [\textcolor{magenta}{industrial production}](https://fred.stlouisfed.org/series/INDPRO), [\textcolor{magenta}{retail sales}](https://fred.stlouisfed.org/series/RSAFSNA), ...
+- [\textcolor{magenta}{interest rates}](https://fred.stlouisfed.org/series/GS10), [\textcolor{magenta}{foreign exchange rates}](https://fred.stlouisfed.org/series/TWEXMMTH), [\textcolor{magenta}{stock market indices}](https://fred.stlouisfed.org/series/NASDAQCOM), [\textcolor{magenta}{prices of commodities}](https://fred.stlouisfed.org/series/WCOILBRENTEU),...
+- [\textcolor{magenta}{unemployment rate}](https://fred.stlouisfed.org/series/unrate), [\textcolor{magenta}{labor force participation rate}](https://fred.stlouisfed.org/series/CIVPART), ...
+- [\textcolor{magenta}{loans}](https://fred.stlouisfed.org/series/BUSLOANSNSA), [\textcolor{magenta}{federal debt}](https://fred.stlouisfed.org/series/GFDEBTN), ...
+
+
+## Nonstationary Time Series
+
+A very slowly decaying ACF suggests nonstationarity and presence of deterministic or stochastic trend in the time series, e.g. for $y_t = y_{t-1} + \varepsilon_t$
+
+```{r, echo=FALSE, warning=FALSE, fig.height=6}
+library(forecast)
+
+nyI1 <- 5000
+maxlagI1 <- 60
+isI1 <- 1
+
+set.seed(50)
+yI1 <- arima.sim(model=list(order = c(0,isI1,0)), n=nyI1)
+
+par(mfrow=c(2,3), cex=1, mar=c(2,2,3,1))
+plot(yI1[1:1000], type="l", main="y")
+Acf(yI1[1:1000], type="correlation", lag=maxlagI1, main="sample ACF")
+Pacf(yI1[1:1000], lag=maxlagI1, main="sample PACF")
+plot(yI1, main="y")
+Acf(yI1, type="correlation", lag=maxlagI1, main="sample ACF")
+Acf(yI1, type="partial", lag=maxlagI1, main="sample PACF")
+```
+
+
+## Transformations
+
+Detrending - regressing $y_t$ on intercept and time trend - this is proper treatment if $\{y_t\}$ is trend stationary
+\vspace{1cm}
+
+Differencing - proper treatment if $\{y_t\}$ is difference stationary
+\vspace{1cm}
+
+Log transformation and differencing - proper treatment if $\{y_t\}$ grows exponentially and shows increasing variability over time
+
+
+
+## Trend-Stationary Time Series
+
+- consider times series $\{y_t\}$ that follows
+$$
+    y_t = \alpha + \mu t + \varepsilon_t
+$$
+where $\varepsilon_t$ is a weakly stationary time series
+
+- $E(y_t)=\alpha+\mu t$ and $var(y_t)=var(\varepsilon_t)=const.$
+- since $E(y_t) \neq const.$ time series $\{y_t\}$ is not weakly stationary
+- $\{y_t\}$ can however be made stationary by removing time trend using a regression of $y_t$ on constant and time
+- $\{y_t\}$ is **trend stationary** time series
+
+
+## Difference-Stationary Time Series
+
+**Random Walk**
+
+- suppose $\varepsilon_t$ is white noise, consider a version of AR(1) model with $\phi_0=0$ and $\phi_1=1$
+$$
+    y_t = y_{t-1} + \varepsilon_t
+$$
+or, by repeated substitution
+$$
+    y_t = \alpha + \sum_{j=1}^t \varepsilon_j
+$$
+where $\alpha=y_0$
+
+- $E(y_t)=\alpha$ and $var(y_t)=var(\sum_{j=1}^t \varepsilon_j)=t \sigma_\varepsilon^2$
+- since $var(y_t) \neq const.$ time series $\{y_t\}$ is not weakly stationary
+- $\{y_t\}$ *can not* be made difference stationary by removing time trend using a regression of $y_t$ on constant and time
+- $\{y_t\}$ can however be made stationary by differencing
+- $\{y_t\}$ is **difference stationary** time series
+
+
+## Difference stationary series vs. Trend stationary series
+
+five simulations of trend stationary time series vs random walk
+
+```{r, echo=FALSE, fig.height=5}
+phi1 <- 0.95
+mu <- 0.15
+burnin <- 0
+ny <- burnin + 250
+I <- 5
+
+yTS.lst <- list()
+set.seed(25)
+for (i in 1:I) {
+    yTS.lst[[i]] <- arima.sim(model=list(order = c(1,0,0), ar=phi1), n=ny) + mu*(1:ny)
+}
+
+yDS.lst <- list()
+set.seed(3)
+for (i in 1:I) {
+    yDS.lst[[i]] <- arima.sim(model=list(order = c(0,1,0)), n=ny)
+}
+
+par(mfrow=c(1,2), cex=0.8, mar=c(2,4,3,1))
+plot(rep(0,(ny-burnin)), type="l", lty="dotted", ylab="yTS", main=expression(paste(y[t]," = ", mu, t, " + ", phi[1],y[t-1], " + ", epsilon[t])), ylim=c(-5,45))
+for (i in 1:I) {
+    lines(yTS.lst[[i]][(burnin+1):ny], type="l")
+}
+plot(rep(0,(ny-burnin)), type="l", lty="dotted", ylab="yDS", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])), ylim=c(-45,35))
+for (i in 1:I) {
+    lines(yDS.lst[[i]][(burnin+1):ny], type="l")
+}
+```
+
+
+## Difference-Stationary Time Series
+
+**Random Walk with Drift**
+
+- suppose $\varepsilon_t$ is white noise, consider a version of AR(1) model with $\phi_1=1$
+$$
+    y_t  = \mu + y_{t-1} + \varepsilon_t
+$$
+and by repeated substitution
+$$
+    y_t = \alpha + \mu t + \sum_{j=1}^t \varepsilon_j
+$$
+where $\alpha=y_0$
+
+- $E(y_t)=\alpha+\mu t$ and $var(y_t)=var(\sum_{j=1}^t \varepsilon_j)=t \sigma_\varepsilon^2$
+- $E(y_t) \neq const.$ and $var(y_t) \neq const.$ so $\{y_t\}$ is not weakly stationary
+- $\{y_t\}$ *can not* be made difference stationary by removing time trend using a regression of $y_t$ on constant and time
+- $\{y_t\}$ can however be made stationary by differencing
+- $\{y_t\}$ is **difference stationary** time series
+
+
+## Difference stationary series vs. Trend stationary series
+
+It is important to be able to distinguish between the two cases:
+
+- with trend stationary series shocks have **transitory effects**
+- with difference stationary series shocks have **permanent effects**
+
+```{r, echo=FALSE, fig.height=4}
+set.seed(4)
+
+phi1 <- 0.7
+mu <- 0.025
+sigmae <- 0.025
+
+burnin <- 1000
+ny <- burnin + 250
+tshock <- burnin + 200
+shock <- -1
+
+eps <- sigmae*rnorm(ny)
+eps[tshock] <- shock
+
+y1 <- arima.sim(model=list(order=c(1,0,0), ar=c(phi1)), n=ny, innov=eps) + mu*(1:ny)
+y1 <- y1 - y1[burnin+1]
+y2 <- arima.sim(model=list(order=c(0,1,0)), innov=eps, n=ny) + mu*(1:(ny+1))
+y2 <- y2 - y2[burnin+1]
+
+par(mfrow=c(1,2), cex=0.8, mar=c(2,4,3,1))
+plot(y1[(burnin+1):ny], type="l", ylab="", ylim=c(-0.25,6.25))
+lines(seq(1,(ny-burnin)), mu*(1:(ny-burnin)), type="l", lty="dotted" )
+plot(y2[(burnin+1):ny], type="l", ylab="", ylim=c(-0.25,6.25))
+lines(seq(1,(ny-burnin)), mu*(1:(ny-burnin)), type="l", lty="dotted" )
+```
+
+In addition, as we will see later additional issues arise with difference stationary series in the context of multivariate time series analysis
+
+
+
+## Difference stationary series vs. Trend stationary series
+
+U.S. GDP and the effect of 2008-2009 recession
+
+permanent effect or structural break?
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, fig.height=4}
+library(Quandl)
+Quandl.api_key('DLk9RQrfTVkD4UTKc7op')
+rGDP <- Quandl("FRED/GDPC1", type="zoo")
+lrGDP <- log(rGDP)
+lrGDP1 <- window(lrGDP, end="2010 Q4")
+
+m1 <- lm(coredata(lrGDP1) ~ index(lrGDP1))
+rGDP.fit <- exp(predict(m1, newdata=index(lrGDP1)))
+lrGDP.fit <- predict(m1, list(index(lrGDP)))
+
+par(mfrow=c(1,2), cex=0.8, mar=c(2,4,3,1))
+plot(rGDP, xlab="", ylab="bn. 2009 chained dollars", main="Real Gross Domestic Product")
+lines(index(lrGDP1), rGDP.fit, lty="dotted" )
+plot(lrGDP, xlab="", ylab="", main="Log of Real Gross Domestic Product", ylim=c(7.5,10) )
+# abline(v = as.yearqtr("2008 Q1"), lty="dotted")
+# abline( lm(coredata(lrGDP1) ~ index(lrGDP1)), lty="dotted" )
+abline( m1, lty="dotted" )
+```
+
+
+## Unit-root Time Series
+
+### Autoregressive Integrated Moving-Average (ARIMA) Models
+
+- non-stationary time series is said to contain a **unit root** or to be **integrated of order one**, $I(1)$, if it can be made stationary by applying first differences
+
+- time series $\{y_t\}$ follows an ARIMA$(p,1,q)$ process if $\Delta y_t=(1-L)y_t$ follows a stationary and invertible ARMA$(p,q)$ process, so that
+$$
+    \phi(L) (1-L) y_t = \mu + \theta(L) \varepsilon_t
+$$
+
+
+## Unit-root Time Series
+
+### Autoregressive Integrated Moving-Average (ARIMA) Models
+
+- non-stationary time series is said to be **integrated of order $d$**, $I(d)$, if it can be made stationary by differencing $d$ times
+
+- time series $\{y_t\}$ follows an ARIMA$(p,d,q)$ process if $\Delta^d y_t=(1-L)^dy_t$ follows a stationary and invertible ARMA$(p,q)$ process, thus
+$$
+    \phi(L) (1-L)^d y_t = \mu + \theta(L) \varepsilon_t
+$$
+
+- note that pure random walk and random walk with drift are special cases, an ARIMA$(0,1,0)$
+$$
+    (1-L) y_t = \mu + \varepsilon_t
+$$
+with $\mu=0$ in case of pure random walk and $\mu \neq 0$ in case of random walk with drift
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+```{r, echo=FALSE}
+T <- 150
+phi1 <- 0.95
+mu <- 0.15
+```
+
+it is often very hard to distinguish random walk and trend stationary model:
+
+`r T` vs 5000 observations of
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, fig.height=5}
+ny <- 5000
+
+set.seed(35)
+yDS <- arima.sim(model=list(order = c(0,1,0)), n=ny)
+set.seed(35)
+yTS <- arima.sim(model=list(order = c(1,0,0), ar=phi1), n=ny) + mu*(1:ny)
+
+par(mfrow=c(2,2), cex=0.8, mar=c(2,4,3,1))
+plot(yDS, ylab="yDS", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+plot(yTS, ylab="yTS", main=expression(paste(y[t]," = ", mu, t, " + ", x[t], " where ", x[t]," = ", phi[1],x[t-1], " + ", epsilon[t])))
+plot(yDS[1:T], type="l", ylab=paste("yDS[1:",T,"]"), main="")
+plot(yTS[1:T], type="l", ylab=paste("yTS[1:",T,"]"), main="")
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+ACF and PACF for `r T` observations of $y_t$ under
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(forecast)
+```
+
+```{r, echo=FALSE, warning=FALSE, fig.height=5}
+maxlagDS <-40
+par(mfrow=c(2,2), cex=0.8, mar=c(2,4,3,1))
+Acf(yDS[1:T], type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+Acf(yTS[1:T], type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", mu, t, " + ", x[t], " where ", x[t]," = ", phi[1],x[t-1], " + ", epsilon[t])))
+Acf(yDS[1:T], type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+Acf(yTS[1:T], type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+ACF and PACF for `r T` observations of first difference $\Delta y_t$ under
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, warning=FALSE, fig.height=5}
+maxlagDS <-40
+par(mfrow=c(2,2), cex=0.8, mar=c(2,4,3,1))
+Acf(diff(yDS[1:T]), type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+Acf(diff(yTS[1:T]), type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", mu, t, " + ", x[t], " where ", x[t]," = ", phi[1],x[t-1], " + ", epsilon[t])))
+Acf(diff(yDS[1:T]), type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+Acf(diff(yTS[1:T]), type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE}
+Arima(yDS[1:T], order=c(1,0,0))
+Arima(yTS[1:T], order=c(1,0,0))
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE, fig.width=5}
+m1DS <- Arima(yDS[1:T], order=c(1,0,0))
+m1TS <- Arima(yTS[1:T], order=c(1,0,0))
+plot(m1DS)
+plot(m1TS)
+```
+
+<!--
+## Difference stationary series vs. Trend stationary series
+
+random walk vs. trend stationary AR(1) with $\mu=0.15$, $\phi_1=0.95$
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE}
+arima(diff(yDS), order=c(1,0,0))
+arima(diff(yTS), order=c(1,0,0))
+```
+-->
+
+## Example 2: Random Walk vs Highly Persistent AR(1)
+
+```{r, echo=FALSE}
+phi1 <- 0.98
+```
+
+also very hard to distinguish random walk model and highly persistent AR(1):
+
+random walk I(1) vs. AR(1) with $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, fig.height=4}
+ny <- 600
+
+set.seed(20)
+yI1 <- arima.sim(model=list(order = c(0,1,0)), n=ny)
+set.seed(20)
+yAR1 <- arima.sim(model=list(order = c(1,0,0), ar=phi1), n=ny)
+
+par(mfrow=c(1,2), cex=1.2, mar=c(2,2,3,1))
+plot(yI1, main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+plot(yAR1, main=expression(paste(y[t]," = ", phi[1],y[t-1], " + ", epsilon[t])))
+```
+
+
+## Example 2: Random Walk vs Highly Persistent AR(1)
+
+ACF and PACF for $y_t$ under
+
+random walk vs. trend stationary AR(1) with $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, warning=FALSE, fig.height=5}
+maxlagDS <-40
+par(mfrow=c(2,2), cex=0.8, mar=c(2,4,3,1))
+Acf(yI1, type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+Acf(yAR1, type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", phi[1],y[t-1], " + ", epsilon[t])))
+Acf(yI1, type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+Acf(yAR1, type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+```
+
+
+## Example 2: Random Walk vs Highly Persistent AR(1)
+
+ACF and PACF for first difference $\Delta y_t$ under
+
+random walk vs. trend stationary AR(1) with $\phi_1=$ `r phi1`
+
+```{r, echo=FALSE, warning=FALSE, fig.height=5}
+maxlagDS <-40
+par(mfrow=c(2,2), cex=0.8, mar=c(2,4,3,1))
+Acf(diff(yI1), type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", y[t-1], "+", epsilon[t])))
+Acf(diff(yAR1), type="correlation", lag=maxlagDS, ylab="sample ACF", main=expression(paste(y[t]," = ", phi[1],y[t-1], " + ", epsilon[t])))
+Acf(diff(yI1), type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+Acf(diff(yAR1), type="partial", lag=maxlagDS, ylab="sample PACF", main="")
+```
+
+
+## Example 2: Random Walk vs Highly Persistent AR(1)
+
+random walk vs. trend stationary AR(1) with $\phi_1=$ `r phi1`
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE}
+Arima(yI1, order=c(1,0,0))
+Arima(yAR1, order=c(1,0,0))
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series
+
+random walk vs. trend stationary AR(1) with $\mu=$ `r mu`, $\phi_1=$ `r phi1`
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE, fig.width=5}
+m2DS <- Arima(yI1, order=c(1,0,0))
+m2TS <- Arima(yAR1, order=c(1,0,0))
+plot(m2DS)
+plot(m2TS)
+```
+
+<!--
+## Difference stationary series vs. Trend stationary series
+
+random walk vs. trend stationary AR(1) with $\phi_1=0.98$
+
+```{r mysize=TRUE, size='\\scriptsize', echo=FALSE, warning=FALSE}
+arima(diff(yI1), order=c(1,0,0))
+arima(diff(yAR1), order=c(1,0,0))
+```
+-->
+
+
+## Unit Root and Stationarity Tests
+
+- two types of tests for nonstationarity
+    - **unit root tests**: $H_0$ is difference stationarity, $H_A$ is trend stationarity
+    - **stationarity tests**: $H_0$ is trend stationary, $H_A$ is difference stationarity
+
+- in general, the approach of these tests is to consider $\{y_t\}$ as a sum
+$$
+    y_t = d_t + z_t + \varepsilon_t
+$$
+where $d_t$ is a deterministic component (time trend, seasonal component, etc.), $z_t$ is a stochastic trend component and $\varepsilon_t$ is a stationary process
+
+- tests then investigate whether $z_t$ is present
+
+
+## Unit Root and Stationarity Tests
+
+**Augmented Dickey-Fuller (ADF) test**
+
+- main idea: suppose $\{y_t\}$ follows $AR(1)$
+$$
+    y_t = \phi_1 y_{t-1} + \varepsilon_t
+$$
+then
+$$
+    \Delta y_t = \gamma y_{t-1} + \varepsilon_t
+$$
+where $\gamma=\phi_1-1$
+
+- if $\{y_t\}$ is $I(1)$ then $\gamma=0$, otherwise $\gamma<0$
+
+
+## Unit Root and Stationarity Tests
+
+**Augmented Dickey-Fuller (ADF) test**
+
+- unit root test
+$H_0$: time series $\{y_t\}$ has a unit root
+$H_A$: time series $\{y_t\}$ is stationary (with zero mean - model A), level stationary (with non-zero mean - model B) or trend stationary (stationary around a deterministic trend - model C)
+$$
+\begin{aligned}
+    &\mbox{model A} \qquad \Delta y_t = \gamma y_{t-1} + \sum_{i=1}^{p-1} \rho_i \Delta y_{t-i} + e_t \\
+    &\mbox{model B} \qquad \Delta y_t = \gamma y_{t-1} + \mu + \sum_{i=1}^{p-1} \rho_i \Delta y_{t-i} + e_t \\
+    &\mbox{model C} \qquad \Delta y_t = \gamma y_{t-1} + \mu + \beta t + \sum_{i=1}^{p-1} \rho_i \Delta y_{t-i} + e_t
+\end{aligned}
+$$
+
+- if $\{y_t\}$ contains a unit root/is difference stationary, $\hat \gamma$ will be insignificant
+
+- test $H_0: \gamma=0$ against $H_A: \gamma<0$; if $t$-statistics for $\gamma$ is lower than critical values we reject the null hypothesis of a unit root (one-sided left-tailed test)
+
+
+## Unit Root and Stationarity Tests
+
+**Augmented Dickey-Fuller (ADF) test**
+\bigskip
+
+If $\gamma<0$ then  
+
+- under model A $y_t$ fluctuates around zero
+- under model B if $\mu \neq 0$ then $y_t$ fluctuates around a non-zero mean
+- under model C if $\mu \neq 0$, $\beta \neq 0$ then $y_t$ fluctuates around linear deterministic trend $\beta t$
+
+
+If $\gamma=0$ then  
+
+- under model A $y_t$ contains stochastic trend only
+- under model B if $\mu \neq 0$ then $y_t$ contains both a linear deterministic trend $\mu t$ and a stochastic trend
+- under model C if $\mu \neq 0$, $\beta \neq 0$ then $y_t$ contains a quadratic deterministic trend $\beta t^2$ and a stochastic trend
+
+
+## Unit Root and Stationarity Tests
+
+**Augmented Dickey-Fuller (ADF) test**
+
+- lags $\Delta y_{t-i}$ used in the test are in order to control for the possible higher order autocorrelation
+
+- number of lags can be chosen by a simple procedure: start with some reasonably large number of lags $p_{max}$ and check the significance of the coefficient on the highest lag with a $t$-test; if insignificant at the 10 \% level, reduce the number of lags by one, proceed in this way until achieving significance
+
+- an alternative approach: select the number of lags $p$ to minimize AIC or BIC
+
+- if $p$ is too small errors will be serially correlated which will bias the test, if $p$ is too large power of the test will suffer
+
+- it is better to err on the side of including too many lags
+
+- ADF has very low power against $I(0)$ alternatives that are close to being $I(1)$, it can't distinguish highly persistent stationary processes from nonstationary processes well
+
+
+<!--
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\scriptsize'}
+library(tseries)
+adf.test(yTS)
+adf.test(yDS)
+adf.test(diff(yDS))
+```
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\scriptsize'}
+library(tseries)
+adf.test(yTS[1:150])
+adf.test(yDS[1:150])
+adf.test(diff(yDS[1:150]))
+```
+-->
+
+
+
+## Unit Root and Stationarity Tests
+
+**Augmented Dickey-Fuller (ADF) test**
+
+- including constant and trend in the regression also weakens the test (model C is thus the weakest on, model A the strongest one)
+
+- if possible, we want to exclude the constant and/or the trend, but if they are incorrectly excluded, the test will be biased
+
+- in addition to providing critical values to testing whether $\gamma=0$, Dickey and Fuller also provide critical values for the following three $F$ tests:
+
+    - $\phi_1$ statistic for model B to test $H_0:$ $\gamma=\mu=0$
+    - $\phi_2$ statistic for model C to test $H_0:$ $\gamma=\mu=\beta=0$
+    - $\phi_3$ statistic for model C to test $H_0:$ $\gamma=\beta=0$
+
+- these allow us to test whether we can restrict the test
+
+
+## Proposed Full Procedure for ADF test
+
+**Step 1.** estimate model C and use $\tau_3$ statistic to test $H_0$: $\gamma = 0$
+
+\vspace{-0.2cm}
+- if $H_0$ can not be rejected continue to Step 2  
+- if $H_0$ is rejected conclude that $y_t$ is trend stationary
+
+
+\vspace{-0.1cm}
+**Step 2.** use $\phi_3$ statistic to test $H_0$: $\gamma = \beta = 0$
+
+\vspace{-0.2cm}
+- if $H_0$ can not be rejected continue to step 3  
+- if $H_0$ is rejected estimate restricted model
+$\Delta y_t = \mu + \beta t + \sum_{i=1}^{p-1} \rho_i \Delta y_{t-i} + e_t$  
+\hspace{.1cm} and use $t$ statistic to test $H_0: \beta = 0$  
+\hspace{.25cm} - if $H_0$ can not be rejected continue to Step 3  
+\hspace{.25cm} - if $H_0$ is rejected conclude that $y_t$ is difference stationary with quadratic trend
+
+
+\vspace{-0.1cm}
+**Step 3.** estimate model B and use $\tau_2$ statistic to test $H_0$: $\gamma=0$
+
+\vspace{-0.2cm}
+- if $H_0$ can not be rejected continue to Step 4  
+- if $H_0$ is rejected conclude that $y_t$ is trend stationary
+
+
+\vspace{-0.1cm}
+**Step 4.** use $\phi_1$ statistic to test $H_0$: $\gamma = \mu = 0$
+
+\vspace{-0.2cm}
+- if $H_0$ can not be rejected continue to step 5  
+- if $H_0$ is rejected estimate restricted model 
+$\Delta y_t = \mu + \sum_{i=1}^{p-1} \rho_i \Delta y_{t-i} + e_t$ and  
+\hspace{.1cm} use standard $t$ statistic to test $H_0: \mu = 0$  
+\hspace{.25cm} - if $H_0$ can not be rejected continue to Step 5  
+\hspace{.25cm} - if $H_0$ is rejected conclude that $y_t$ is random walk with drift
+
+
+\vspace{-0.1cm}
+**Step 5.** estimate model A and use $\tau_1$ statistic to test $H_0$: $\gamma=0$
+
+\vspace{-0.2cm}
+- if $H_0$ can not be rejected conclude that $y_t$ is random walk  
+- if $H_0$ is rejected conclude that $y_t$ is trend stationary
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+\vspace*{3pt}
+```{r mysize=TRUE, size='\\tiny'}
+library(urca)
+ur.df(yTS, type = "trend", selectlags = "AIC") %>% summary()
+```
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+\vspace*{3pt}
+```{r mysize=TRUE, size='\\tiny'}
+ur.df(yTS[1:150], type = "trend", selectlags = "AIC") %>% summary()
+```
+
+
+## Unit Root and Stationarity Tests
+
+**Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test**
+
+- stationarity test
+$H_0$: $\{y_t\}$ is stationary (either mean stationary or trend stationary)
+$H_A$: $\{y_t\}$ is difference stationary (has a unit root)
+
+- main idea: decompose time series $\{y_t\}$ as
+$$
+    y_t = d_t + z_t + \varepsilon_t
+$$
+where $d_t$ is the deterministic trend, $z_t$ is random walk $z_t = z_{t-1} + \nu_t$, $\nu_t$ is white noise (iid $E(\nu_t)=0$, $var(\nu_t)=\sigma_\nu^2$ ), and $\varepsilon_t$ stationary error (i.e. $I(0)$ but not necessarily white noise)
+
+- stationarity of $\{y_t\}$ depends on $\sigma_\nu^2$, we can run a test
+$$
+    H_0: \sigma^2_\nu=0
+$$
+against
+$$
+    H_A : \sigma^2_\nu > 0
+$$
+using Lagrange multiplier (LM) statistic
+
+
+## Unit Root and Stationarity Tests
+
+**Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test**
+
+- to perform KPSS test we estimate
+$$
+\begin{aligned}
+    & \text{model A} \qquad  y_t = \mu + e_t \\
+    & \text{model B} \qquad  y_t = \mu + \beta t + e_t
+\end{aligned}
+$$
+model A is used if $H_0$ is mean stationarity, model B is used if $H_0$ is trend stationarity
+
+- using residuals $e_t$ we construct LM statistics $\eta$
+$$
+    \eta = \frac{1}{T^2}\frac{1}{s^2}\sum_{t=1}^T S_t^2
+$$
+where $S_t=\sum_{i=1}^t e_i$ is the partial sum process of the residuals $e_t$ and $s^2$ is an estimator of the long-run variance of the residuals $e_t$.
+
+<!--
+$$
+    s^2(l)=\frac{1}{T} \sum_{t=1}^T e_t^2 + 2 \frac{1}{T} \sum_{s=1}^l\sum_{t=s+1}^T e_t e_{t-s}
+$$
+    With $l>0$ the variance estimator $s^2(l)$ controls for possible autocorrelation in the residuals $e_t$.  The critical values are asymptotic and thus more appropriate for large samples. Typically the test is run for $l$ ranging from 0 to 8. As $l$ increases we are less likely to reject the $H_0$ of stationarity, partly due to the decreasing power of the test.
+
+KPSS test is a one-sided right-tailed test, we reject $H_0$ at $100\alpha\%$ level if the test statistic is greater than the $100(1-\alpha)\%$ percentile from the appropriate asymptotic distribution
+-->
+
+- KPSS test is a one-sided right-tailed test: we reject $H_0$ at $\alpha\%$ level if $\eta$ is greater than $100(1-\alpha)\%$ percentile from the appropriate asymptotic distribution
+
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\scriptsize'}
+ur.kpss(yTS, type = "tau", lags = "long") %>% summary()
+```
+
+```{r mysize=TRUE, size='\\scriptsize'}
+ur.kpss(yTS[1:150], type = "tau", lags = "long") %>% summary()
+```
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\scriptsize'}
+ur.kpss(yDS, type = "tau", lags = "long") %>% summary()
+```
+
+```{r mysize=TRUE, size='\\scriptsize'}
+ur.kpss(yDS[1:150], type = "tau", lags = "long") %>% summary()
+```
+
+
+## Unit Root and Stationarity Tests
+
+**Phillips-Perron (PP) test**
+
+- an alternative to ADF test, estimates one of the models
+$$
+\begin{aligned}
+    &\mbox{model A} \qquad \Delta y_t = \gamma y_{t-1} + e_t \\
+    &\mbox{model B} \qquad \Delta y_t = \gamma y_{t-1} + \mu + e_t \\
+    &\mbox{model C} \qquad \Delta y_t = \gamma y_{t-1} + \mu + \beta t + e_t
+\end{aligned}
+$$
+and tests $H_0: \gamma=0$ against $H_A: \gamma<0$
+
+- unlike ADF uses non-parametric correction based on Newey-West heteroskedasticity and autocorrelation consistent (HAC) estimators to account for possible autocorrelation in $e_t$
+
+- advantage over the ADF: PP tests are robust to general forms of heteroskedasticity and do not require to choose number of lags in the test regression
+
+- asymptotically identical to ADF test, but likely inferior in small samples
+
+- like ADF also not very powerful at distinguishing stationary near unit root series for unit root series
+
+
+<!--
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\tiny'}
+library(urca)
+yTS.urpp <- ur.pp(yTS, type="Z-alpha", model="trend")
+summary(yTS.urpp)
+```
+--->
+
+
+## Unit Root and Stationarity Tests
+
+**Elliot, Rothenberg and Stock (ERS) tests**
+
+- two efficient unit root tests with substantially higher power than the ADF or PP tests especially when
+$\phi_1$ is close to 1
+
+- P-test: optimal for point alternative $\phi_1=1-\bar c/T$
+
+- DF-GLS test: main idea - estimate test regression as in model A of ADF but with detrended time series $y_t$
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+```{r mysize=TRUE, size='\\tiny'}
+ur.ers(yTS, type ="P-test", model = "trend") %>% summary()
+```
+
+```{r mysize=TRUE, size='\\tiny'}
+ur.ers(yTS[1:150], type = "P-test", model = "trend") %>% summary()
+```
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+\vspace*{3pt}
+```{r mysize=TRUE, size='\\tiny'}
+ur.ers(yTS, type = "DF-GLS", model = "trend") %>% summary()
+```
+
+
+## Example 1: Difference stationary series vs. Trend stationary series contd.
+
+\vspace*{3pt}
+```{r mysize=TRUE, size='\\tiny'}
+ur.ers(yTS[1:150], type = "DF-GLS", model = "trend") %>% summary()
+```
