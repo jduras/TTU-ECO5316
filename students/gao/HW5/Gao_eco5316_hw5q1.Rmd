@@ -1,0 +1,329 @@
+---
+title: "Gao_eco5316_HW5"
+author: "Shijia Gao"
+date: "3/11/2019"
+output: html_document
+---
+```{r}
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(sweep)
+library(ggplot2)
+library(scales)
+library(ggfortify)
+library(egg)
+library(tsibble)
+library(tictoc)
+library(forecast)
+library(tseries)
+library(uroot)
+library(urca)
+
+install.packages("tibbletime")
+install.packages("uroot")
+install.packages ("tseries")
+install.packages("urca")
+
+
+# set default theme for ggplot2
+theme_set(theme_bw())
+```
+
+
+```{r}
+#(a) Obtain monthly data for Total Nonfarm Payroll Employment, Not Seasonally Adjusted, available on FRED under code [`PAYNSA`](https://fred.stlouisfed.org/series/PAYNSA). Import the 1975M1-2018M12 sample using `tq_get`.
+#(b) Construct the following transformed time series
+#1. change in Total Nonfarm Payroll Employment $\Delta E_t = E_t - E_{t-1}$
+#2. log of Total Nonfarm Payroll Employment $\log E_t$
+#3. log change in Total Nonfarm Payroll Employment $\Delta \log E_t = \log E_t - \log E_{t-1}$
+#4. 12 month log change  in Total Nonfarm Payroll Employment $\Delta_{12} \log E_t = \log E_t - \log E_{t-12}$
+#5. twice differenced Total Nonfarm Payroll Employment $\Delta \Delta_{12} \log E_t = \Delta_{12} \log E_t - \Delta_{12} \log E_{t-1}$. 
+
+data.tbl <-
+  tq_get("PAYNSA", get = "economic.data", from = "1975-01-01", to = "2018-12-01")  %>%
+  rename(E = price) %>%
+  ts(start = c(1975,1), frequency = 12) %>%
+  tk_tbl() %>%
+  mutate(lE = log(E),
+         dE = E - lag(E),
+         dlE1 = lE - lag(lE),
+         dlE12 = lE - lag(lE, 12),
+         d2lE12_1 = dlE12 - lag(dlE12))
+
+
+#Plot the original and the transformed time series. Comment on their trends, volatility, seasonal patterns.
+fstm <- 1975.00 
+lstm <- 2019-(1/12)
+data_tbl_1 <- data.tbl %>%
+  filter(index <= as.yearmon(lstm))
+
+data_tbl_1%>%
+  gather(variable, value, -index) %>%
+  mutate(variable_label = factor(variable, ordered = TRUE,
+                                 levels = c("E", "lE", "dE", "dlE1", "dlE12", "d2lE12_1"),
+                                 labels = c("E", "log(E)",
+                                            expression(paste(Delta,"E")),
+                                            expression(paste(Delta,"log(E)")),
+                                            expression(paste(Delta[12],"log(E)")),
+                                            expression(paste(Delta,Delta[12],"log(E)"))))) %>%  
+  ggplot(aes(x = index, y = value)) +
+  geom_hline(aes(yintercept = 0), linetype = "dotted") +
+  geom_line() +
+  scale_x_yearmon() +
+  labs(x = "", y = "") +
+  facet_wrap(~variable_label, ncol = 3, scales = "free", labeller = label_parsed) +
+  theme(strip.text = element_text(hjust = 0),
+        strip.background = element_blank())   
+
+##Comments: From the above graphs, we can see the original monthly data for Total Nonfarm Payroll Employment is nonstationary, it shows some seasonal pattern and increasing trend, so we have to transform the data using a logarithm and apply both regular and seasonal differencing, namely d2lE12_1 = dlE12 - lag(dlE12), from the graph of d2LE12_1, we can see the data is roughly stationary around the mean of 0, which means the increasing trend is also removed. 
+```
+
+```{r}
+ # (c) Use `ggseasonplot` to create seasonal plots for $\Delta E_t$ and $\Delta \log E_t$. Comment on the seasonal patterns.
+data_tbl_1%>% tk_ts(select=dE, start=c(1975 ,1),frequency=12)%>% ggseasonplot
+data_tbl_1%>% tk_ts(select=dlE1, start=c(1975,1),frequency=12)%>% ggseasonplot
+
+## Comments: From the follwing graph, both $\Delta E_t$ and $\Delta \log E_t$ had shown seasonality pattern almost every 12months . 
+```  
+
+
+```{r}
+##(d) Plot ACF and PACF for $\log E_t, \Delta \log E_t, \Delta_{12} \log E_t, \Delta \Delta_{12} \log E_t$. Comment on their shape.
+maxlag <-24
+g1 <- data_tbl_1  %>% pull(lE) %>% ggAcf(lag.max = maxlag, ylab = "", main = expression(paste("ACF for log(E)")))
+g2 <- data_tbl_1  %>% pull(dlE1) %>% ggAcf(lag.max = maxlag, ylab = "", main = expression(paste("ACF for ", Delta,"log(E)")))
+g3 <- data_tbl_1  %>% pull(dlE12) %>% ggAcf(lag.max = maxlag, ylab = "", main = expression(paste("ACF for ", Delta[12], "log(E)")))
+g4 <- data_tbl_1  %>% pull(d2lE12_1) %>% ggAcf(lag.max = maxlag, ylab = "", main = expression(paste("ACF for ", Delta, Delta[12], "log(E)")))
+g5 <- data_tbl_1  %>% pull(lE) %>% ggPacf(lag.max = maxlag, ylab = "", main = expression(paste("PACF for log(E)")))
+g6 <- data_tbl_1  %>% pull(dlE1) %>% ggPacf(lag.max = maxlag, ylab = "", main = expression(paste("PACF for ", Delta, "log(E)")))
+g7 <- data_tbl_1  %>% pull(dlE12) %>% ggPacf(lag.max = maxlag, ylab = "", main = expression(paste("PACF for ", Delta[12], "log(E)")))
+g8 <- data_tbl_1 %>% pull(d2lE12_1) %>% ggPacf(lag.max = maxlag, ylab = "", main = expression(paste("PACF for ", Delta,Delta[12], "log(E)")))
+ggarrange(g1, g2, g3, g4, g5, g6, g7, g8, ncol = 4)
+
+## Comments: Forlog E_t, it shows a gradual decline in the ACF and a spike which almost equals to 1 at first lag in the PACF, so there is a unit root.                                                                                                        For Delta \log E_t, the first large spike in the ACF of log E_t has gone now, which is good, but there are some spikes at lag6, lag 12, lag18, lag24, and in the PACF, spikes are at lag6, lag 12, so there must be some seasonal pattern, and it's more like multiplicative seasonal MA model.                                                                        For Delta_{12} \log E_t, it's like AR(3) model.                                                                           For Delta \Delta_{12} \log E_t, There is a gradual decline every 12 lags in ACF, and in PACF, there are some large spikes in lag 1, lag2, lag3 and lag12, and small spikes in lag 13, lag 14 and lag 24, so we can estimate that the model is AR(3) with seasonal pattern, the frequency is 12, namely the model might be ARIMA(3,0,0)(3,0,0)[12], and we can estimate it later. 
+
+```
+
+```{r}
+##(e) Perform the ADF and KPSS tests on $\log E_t, \Delta_{12} \log E_t, \Delta \Delta_{12} \log E_t$. Summarize the results.
+data.ts1 <- data.tbl %>%
+  tk_ts(select = lE, start = fstm, frequency = 12)
+ur.df(data.ts1,type="drift", selectlags="AIC")%>%summary()
+ur.kpss(data.ts1,type="mu", lags="long")%>%summary()
+
+data.ts2 <- na.omit(data.tbl) %>%
+  tk_ts(select = dlE12, start = fstm, frequency = 12)
+  ur.df(data.ts2,type="drift", selectlags="AIC")%>%summary()
+  ur.kpss(data.ts2,type="mu", lags="long")%>%summary()
+  
+data.ts3 <- na.omit(data.tbl) %>%
+  tk_ts(select = d2lE12_1, start = fstm, frequency = 12)
+  ur.df(data.ts3,type="drift", selectlags="AIC")%>%summary()
+  ur.kpss(data.ts3,type="mu", lags="long")%>%summary()
+  
+## Comments: FOr log E_t, since tau3 in the DF tests is  -1.8841 which is larger than the critical value at 1%, 5%, and 10%, so we fail to reject the null hypothesis and conclude that there is a unit root. In KPSS test, since the value of test-statistic is  2.7416, which is greater than the critical values at 1%, 2.5%, 5%, and 10%, so we reject the null hypothesis and conclude that there is no mean stationarity.                                                                     FOr Delta_{12} \log E_t, since tau3 in the DF tests is -2.6022 which is larger than the critical value at 1%, 5%, so we fail to reject the null hypothesis and conclude that there is a unit root. In KPSS test, since the value of test-statistic is 0.4387, which is smaller than the critical values at 1%, 2.5%, 5%, so we fail to reject the null hypothesis and conclude that there is mean stationarity.                                                                       FOr Delta \Delta_{12} \log E_t$, since tau3 in the DF tests is -8.4245 which is smaller than the critical value at 1%, 5%, and 10%, so we reject the null hypothesis and conclude that there is no unit root. In KPSS test, since the value of test-statistic is 0.0241, which is smaller than the critical values at 1%, 2.5%, 5%, and 10%, so we fail to reject the null hypothesis and conclude that there is mean stationarity.                                                                  Therefore, by taking two differences of log E_t, the data now is mean stationary and with no unit root, which is good. 
+```
+```{r}
+#(f) Split the sample into two parts: estimation sample from 1975M1 to 2014M12, and prediction sample from 2015M1 to 2018M12. Use ACF and PACF from (c) to identify and estimate a suitable model for $\Delta \Delta_{12} \log E_t$ using `Arima`. Check the estimated model for adequacy - diagnose residuals using `ggtsdiag`. 
+
+# split sample - estimation and prediction subsamples
+fstm1 <- 1975.000 
+lstm1 <- 2015-(1/12)
+fstm2 <- 2015.000 
+lstm2 <- 2019-(1/12)
+
+##Use ACF and PACF from (d), we can identify and estimate a suitable model is ARIMA(3,0,0)(3,0,0)[12]
+##For the estimation sample 
+me<- data_tbl_1 %>%
+  tk_ts(select = d2lE12_1, start = fstm1, frequency = 12) %>% 
+  Arima(order = c(3,0,0), seasonal = list(order = c(3,0,0), period = 12))
+ggtsdiag(me, gof.lag = maxlag)
+
+##For the prediction sample
+mp<- data_tbl_1 %>%
+  tk_ts(select = d2lE12_1, start = fstm2, frequency = 12) %>% 
+  Arima(order = c(3,0,0), seasonal = list(order = c(3,0,0), period = 12))
+ggtsdiag(mp, gof.lag = maxlag)
+
+#Comments: From the graphs, we can get the estimated model ARIMA(3,0,0)(3,0,0)[12] perform well in both estimation sample and prediction sample, no seasonal pattern is present in the ACF of residuals, standardized residuals are white noise, and p values are quite large. 
+
+```
+
+```{r}
+
+#(g) Use `auto.arima` to find the best model for $\log E_t$. Check the estimated model for adequacy - diagnose residuals using `ggtsdiag`. 
+m1<- data_tbl_1 %>%
+      tk_ts(select = d2lE12_1, start = fstm1, frequency = 12) %>%
+      auto.arima(ic = "aic", d = 1, D = 1, seasonal = TRUE,stationary = TRUE, stepwise = FALSE, approximation = FALSE)
+m1
+ggtsdiag(m1)
+##Comments: From auto.arima, we can get the model is ARIMA(3,0,0)(1,0,1)[12] with zero mean. the result is very well. no seasonal pattern is present in the ACF of residuals, standardized residuals are white noise and p values are quite large.
+
+```
+
+```{r}
+#(h) Use `slide` from `tsibble` package to create a rolling scheme sequence of 1 period ahead forecasts for the prediction subsample 2015M1-2018M12 using the same model specification as in (g). 
+      fstm1 <- 1975 
+      lstm1 <- 2015-(1/12)
+      data.ts_3<- data.tbl%>%
+        filter(index <= as.yearmon(lstm1)) %>%
+        tk_ts(select = lE, start = lstm1+(1/12), frequency = 12)
+      window.length <- nrow(data.ts_3)
+      tic()
+      results <-
+        data.tbl %>%
+        mutate(yearm= yearmonth(index)) %>%
+        as_tsibble(index = yearm) %>%                                        # covert to tsibble
+        mutate(sarima.model = slide(lE, ~auto.arima(.x, ic = "aicc", seasonal = TRUE, approximation = FALSE, stepwise = FALSE),
+                                    .size = window.length)) %>%             # estimate models
+        filter(!is.na(sarima.model)) %>%                                    # remove periods at the beginning of sample where model could not be estimated due to lack of data,
+        mutate(sarima.coefs = map(sarima.model, tidy, conf.int = TRUE),
+               sarima.fcst = map(sarima.model, (. %>% forecast(1) %>% sw_sweep())))
+      toc()
+      results
+      
+```
+
+
+```{r}
+#(i) Plot the forecast for $E_t$ from (h) together with its confidence intervals and the actual data for the period 2008M1-2018M12.
+
+#Forecasts
+fstm3 <- 1975 
+lstm3 <- 2008-(1/12)
+data.ts_4<- data.tbl%>%
+  filter(index <= as.yearmon(lstm1)) %>%
+  tk_ts(select = E, end=lstm3, frequency = 12)
+
+m2<- data.ts_4 %>%
+  tk_ts(select=E, end=lstm3, frequency = 12) %>%
+  auto.arima(ic = "aic", d = 1, D = 1, seasonal = TRUE,stationary = TRUE, stepwise = FALSE, approximation = FALSE)
+m2
+ggtsdiag(m2)
+
+# construct 1-month ahead forecasts
+hmax <- 132
+f_1<- forecast(m2, hmax) 
+f_1 
+
+# plot 1month ahead forecasts-level
+autoplot(f_1) +
+  labs(x = "", y = "",
+       title = "Total Nonfarm Payroll Employment:multistep Forecast")
+
+# actual data  
+actual_tbl <-
+  data.tbl %>%
+  select(index, E) %>%
+  mutate(key = "actual",
+         date = as.Date(index)) %>%
+  select(date, key, E) %>% filter(year(date) >= 2008)
+actual_tbl
+
+# extract the multistep forecasts, convert to levels
+PE_tbl_f_1 <-
+  f_1 %>%
+  sw_sweep() %>%   # sw_sweep format the data in a nice way 
+  filter(key == "forecast") %>%
+  mutate_at(vars(E, lo.80, lo.95, hi.80, hi.95), funs()) %>%   # funs(exp) exponential function
+  mutate(date = as.Date(index)) %>%     #mutate the index to date 
+  select(date, key, E, lo.80, lo.95, hi.80, hi.95)
+
+# forecast & actual data in a single tibble    ##combine the forecasts and actual data, then we can plot them together
+f_a_tbl <- bind_rows(actual_tbl,  PE_tbl_f_1, .id = NULL)
+f_a_tbl
+
+# plot 1-month ahead rolling forecasts - levels
+gf1<-f_a_tbl %>%
+    filter(date >= "1975-01-01") %>%
+    ggplot(aes(x = date, y = E, col = key, linetype = key)) +
+         geom_ribbon(aes(ymin = lo.95, ymax = hi.95), linetype = "blank", fill = "blue", alpha = 0.1) +
+         geom_ribbon(aes(ymin = lo.80, ymax = hi.80), linetype = "blank", fill = "blue", alpha = 0.2) +
+         geom_line() +
+         geom_point() +
+        scale_color_manual(values = c("gray40","blue")) +
+        scale_linetype_manual(values = c("solid","solid")) +
+        labs(x = "", y = "",
+        title = "Total Nonfarm Payroll Employment: 1-Step Ahead Rolling Forecast") +
+         theme(legend.position = "none") 
+gf1
+
+##Comments: # from the result, this forecast doesn't perform well. The trend and seasonal pattern of the forecasts are far from the characteristics of the actual data.   
+```
+
+```{r}
+#(j) Use the forecast for $E_t$ from (h) to construct the forecast for $\Delta E_t$, plot it together with the actual data.
+
+ fstm3 <- 1975 
+lstm3 <- 2008-(1/12)
+data.ts_5<- data.tbl%>%
+  filter(index <= as.yearmon(lstm1)) %>%
+  tk_ts(select = dE, end=lstm3, frequency = 12)
+
+m3<- data.ts_5 %>%
+  tk_ts(select = dE, end=lstm3, frequency = 12) %>%
+  auto.arima(ic = "aic", d = 1, D = 1, seasonal = TRUE,stationary = TRUE, stepwise = FALSE, approximation = FALSE)
+m3
+ggtsdiag(m3)
+
+# construct 1-month ahead forecasts
+hmax <- 132
+f_2<- forecast(m3, hmax) 
+f_2 
+
+# plot 1month ahead forecasts-level
+autoplot(f_2) +
+  labs(x = "", y = "",
+       title = "The first difference of Total Nonfarm Payroll Employment:multistep Forecast")
+
+# actual data  
+actual_tbl_2 <-
+  data.tbl %>%
+  select(index, dE) %>%
+  mutate(key = "actual",
+         date = as.Date(index)) %>%
+  select(date, key, dE) %>% filter(year(date) >= 2008)
+actual_tbl_2
+# extract the multistep forecasts, convert to levels
+PE_tbl_f_2 <-
+  f_2 %>%
+  sw_sweep() %>%   # sw_sweep format the data in a nice way 
+  filter(key == "forecast") %>%
+  mutate_at(vars(dE, lo.80, lo.95, hi.80, hi.95), funs()) %>%   # funs(exp) exponential function
+  mutate(date = as.Date(index)) %>%     #mutate the index to date 
+  select(date, key, dE, lo.80, lo.95, hi.80, hi.95)
+
+# forecast & actual data in a single tibble    ##combine the forecasts and actual data, then we can plot them together
+f_a_tbl_2 <- bind_rows(actual_tbl_2,  PE_tbl_f_2,.id = NULL)
+f_a_tbl_2 
+# plot 1-month ahead rolling forecasts - levels
+gf2<-f_a_tbl_2 %>%
+  filter(date >= "1975-01-01") %>%
+  ggplot(aes(x = date, y = dE, col = key, linetype = key)) +
+  geom_ribbon(aes(ymin = lo.95, ymax = hi.95), linetype = "blank", fill = "blue", alpha = 0.1) +
+  geom_ribbon(aes(ymin = lo.80, ymax = hi.80), linetype = "blank", fill = "blue", alpha = 0.2) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("gray40","blue")) +
+  scale_linetype_manual(values = c("solid","solid")) +
+  labs(x = "", y = "",
+       title = "Total Nonfarm Payroll Employment: 1-Step Ahead Rolling Forecast") +
+  theme(legend.position = "none")   
+gf2
+
+##Comments: # from the result, this forecast is a better forecast than the previous one, but actually, this forecast still doesn't perform well. To be more specific, the forecasts are closer to the actual data from 2008-01-01 to 2009-11-01 because the forecast shows the trend and the seasonal pattern which are approximately consistent with the actual data, but from 2010, the forecasts deviate from the actual data too much. From the p values for LjungBo statistic for the model ARIMA(1,0,0)(0,0,2)[12], P values are large for first 5 lags, and they become quite low after the 5th lag, and we can get some clue of the reason for the characteristic of the accuracy of forecast dE.
+
+```
+
+```{r}
+#(k) Construct and plot the forecast errors for $E_t$ and for $\Delta E_t$.
+
+#the forecast errors for $E_t$
+accuracy(PE_tbl_f_1$E, actual_tbl$E)
+#the forecast errors for $\Delta E_t$
+accuracy(PE_tbl_f_2$dE, actual_tbl_2$dE)
+ 
+##Comments: From the following results, we can get although these two models' errors are both large, but forecasts based on the dE is better than the E's forecasts because dE's results showed lower RMSE and MAE. 
+```
