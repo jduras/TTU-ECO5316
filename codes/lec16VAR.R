@@ -1,16 +1,21 @@
 
-rm(list=ls())
-
 library(magrittr)
 library(tidyquant)
 library(timetk)
 library(tibbletime)
+library(tsibble)
 library(broom)
 library(ggplot2)
 library(ggfortify)
+library(vars)           # package that allows to estimate and analyze VAR models
+library(stargazer)
+library(listviewer)
+library(qqplotr)
 
 # set default theme for ggplot2
-theme_set(theme_bw())
+theme_set(theme_bw() +
+              theme(strip.text = element_text(hjust = 0),
+                    strip.background = element_blank()))
 
 
 #### Data ####
@@ -37,7 +42,8 @@ hpi.tbl %>%
         scale_color_manual(name = "MSA", values = c("blue","red"), labels = c("Los Angeles","Riverside")) +
         scale_linetype_manual(name = "MSA", values = c("solid","dashed"), labels = c("Los Angeles","Riverside")) +
         labs(x = "", y = "", linetype = "") +
-        facet_wrap(~variable_labels, scales = "free_y")
+        facet_wrap(~variable_labels, ncol = 1, scales = "free_y") +
+        theme(legend.position = c(0.1, 0.9))
 
 # convert log change in house price index in Los Angeles MSA and for Riverside MSA into ts
 hpi.ts <-
@@ -48,10 +54,8 @@ hpi.ts <-
     tk_ts(select = c("LA","RI"), start = 1976.5, frequency = 4)
 
 
-#### VAR ####
 
-# load package that allows to estimate and analyze VAR models
-library(vars)
+#### VAR ####
 
 VARselect(hpi.ts, lag.max = 8, type = "const")
 
@@ -65,12 +69,27 @@ varp <- VAR(hpi.ts, ic = "AIC", lag.max = 8, type = "const")
 varp
 summary(varp)
 
-# using stargazer package to report results of VAR estimation
+# for large nested lsts jsonedit from listviewer package is more convenient than str 
+str(var1)
+str(varp)
+names(varp)
+names(varp$varresult)
+
+jsonedit(var1, mode = "view")
+
+# use stargazer package to report results of VAR estimation
 lm1 <- var1$varresult
 lmp <- varp$varresult
 
-library(stargazer)
 stargazer(lm1$LA, lm1$RI, lmp$LA, lmp$RI,
+          type  ="text", column.labels = rep(colnames(hpi.ts), 2),
+          dep.var.labels.include = FALSE)
+
+stargazer(lm1$RI, lmp$RI,
+          type  ="text", column.labels = c("RI VAR(1)", "RI VAR(3)"),
+          dep.var.labels.include = FALSE)
+
+stargazer(lm1, lmp,
           type  ="text", column.labels = rep(colnames(hpi.ts), 2),
           dep.var.labels.include = FALSE)
 
@@ -80,14 +99,12 @@ plot(varp)
 plot(varp, names = "LA")
 plot(varp, names = "RI")
 
-str(varp)
-names(varp)
-names(varp$varresult)
+
+
 
 
 # QQ plot for residuals
-library(qqplotr)
-ggplot(data = as.tibble(varp$varresult$LA$residuals), mapping = aes(sample = value)) +
+ggplot(data = as_tibble(varp$varresult$LA$residuals), mapping = aes(sample = value)) +
     stat_qq_band(alpha = 0.3, conf = 0.95) +
     stat_qq_line() +
     stat_qq_point() +
@@ -98,6 +115,19 @@ ggplot(data = as.tibble(varp$varresult$RI$residuals), mapping = aes(sample = val
     stat_qq_line() +
     stat_qq_point() +
     labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Riverside equation")
+
+
+
+residuals(varp) %>% 
+    as_tibble() %>%
+    gather(msa, residuals) %>%
+    ggplot(mapping = aes(sample = residuals)) +
+        stat_qq_band(alpha = 0.3, conf = 0.95) +
+        stat_qq_line() +
+        stat_qq_point() +
+        labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Riverside equation") + 
+        facet_wrap(~msa)
+
 
 
 # multivariate Jarque-Bera test
@@ -116,7 +146,7 @@ causality(varp, cause = "RI")
 
 # define a  matrix with restictions
 mat.r <- matrix(1, nrow = 2, ncol = 7)
-mat.r[1, c(2,4,6)] <- 0
+mat.r[1, c(2, 4, 6)] <- 0
 mat.r
 varp.r <- restrict(varp, method = "manual", resmat = mat.r)
 varp.r
@@ -149,12 +179,12 @@ window.length <- nrow(hpi.ts)
 # create rolling VAR function with rollify from tibbletime package
 roll_VAR <- rollify(function(LA, RI) {
                         x <- cbind(LA, RI)
-                        VAR(x, ic = "AIC", lag.max = 8, type = "const")
+                        VAR(x, ic = "SC", lag.max = 8, type = "const")
                         },
                     window = window.length, unlist = FALSE)
 
 
-# estimate rolling VAR model, create 1 period ahead rolling forecasts
+# estimate rolling VAR model, create 1 period ahead rolling forecasts - using tibbletime
 results <-
     hpi.tbl %>%
     dplyr::select(msa, date, dly) %>%
@@ -172,8 +202,30 @@ results <-
                                        bind_rows(.id = "msa"))))
 results
 
+# estimate rolling VAR model, create 1 period ahead rolling forecasts - using tsibble
+results <-
+    hpi.tbl %>%
+    select(msa, date, dly) %>%
+    spread(msa, dly) %>%
+    filter(date >= "1976-07-01") %>%
+    mutate(yearq = yearquarter(date)) %>%
+    as_tsibble(index = yearq) %>%
+    mutate(VAR.model = slide2(LA, RI, ~ bind_cols(LA = .x, RI = .y) %>% 
+                                  VAR(ic = "SC", lag.max = 8, type = "const"), 
+                              .size = window.length)) %>%                                   # estimate models
+    filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
+    mutate(VAR.coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
+                                           map(as.tibble) %>%
+                                           bind_rows(.id = "msa"))),
+           VAR.f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
+                                       fcst %>%
+                                       map(as.tibble) %>%
+                                       bind_rows(.id = "msa"))))
+results
+
 # plot estimated coefficients with confidence intervals
 results %>%
+    as_tibble() %>%
     dplyr::select(date, VAR.coefs) %>%
     unnest() %>%
     ggplot(aes(x = date, y = estimate, group = term)) +
