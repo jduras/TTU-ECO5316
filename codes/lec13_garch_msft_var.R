@@ -1,14 +1,22 @@
 
-ar1garch11norm_q <- qdis(p = 0.01, mu = 0, sigma = 1) 
+# dis_sel <- "norm"
+# qdis <- function(p, mu = 0, sigma = 1, skew = 1, shape = 5) qdist(distribution = dis_sel, p, mu, sigma, lambda, skew, shape)
+# ar1garch11norm_q <- qdis(p = 0.01, mu = 0, sigma = 1) 
+# VaR_1pct <- ar1garch11norm_mean + ar1garch11norm_q*ar1garch11norm_vol
+# VaR_1pct <- fitted(ar1garch11norm) + ar1garch11norm_q*sigma(ar1garch11norm)
 
-VaR_1pct <- ar1garch11norm_mean + ar1garch11norm_q*ar1garch11norm_vol
+library(scales)
 
+# 1% VaR with N(0,1) innovations
+VaR_1pct <- fitted(ar1garch11norm) + qnorm(p = 0.01)*sigma(ar1garch11norm)
 
 dataset_VaR <- cbind(dataset, VaR_1pct) %>%
     tk_tbl()
 
+# dates when the actual loss exceeds the 1% VaR
 exceedance <- (dataset < VaR_1pct)
 
+# plot 1% VaR and actual returns
 dataset_VaR %>%
     gather(measure, value, c(return, VaR_1pct)) %>%
     ggplot(aes(x = index, y = value, color = measure)) +
@@ -22,8 +30,9 @@ dataset_VaR %>%
     labs(x = "", y = "", title =  str_c(title_label, " weekly log returns: 1% VaR and its exceedances")) +
     theme(legend.position = "none")
 
+# fraction of sample where actual return is below 1% VaR (so when actual loss exceeds the 1% VaR)
 sum(dataset < VaR_1pct) / length(VaR_1pct)
-
+sum(exceedance) / length(VaR_1pct)
 
 
 
