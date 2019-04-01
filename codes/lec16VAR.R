@@ -11,6 +11,7 @@ library(vars)           # package that allows to estimate and analyze VAR models
 library(stargazer)
 library(listviewer)
 library(qqplotr)
+library(plotly)
 
 # set default theme for ggplot2
 theme_set(theme_bw() +
@@ -100,44 +101,47 @@ plot(varp, names = "LA")
 plot(varp, names = "RI")
 
 
-
-
-
 # QQ plot for residuals
-ggplot(data = as_tibble(varp$varresult$LA$residuals), mapping = aes(sample = value)) +
-    stat_qq_band(alpha = 0.3, conf = 0.95) +
-    stat_qq_line() +
-    stat_qq_point() +
-    labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Los Angeles equation")
+varp$varresult$LA$residuals
 
-ggplot(data = as.tibble(varp$varresult$RI$residuals), mapping = aes(sample = value)) +
-    stat_qq_band(alpha = 0.3, conf = 0.95) +
-    stat_qq_line() +
-    stat_qq_point() +
-    labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Riverside equation")
-
-
-
-residuals(varp) %>% 
+varp %>%
+    pluck("varresult", "LA", "residuals") %>% 
     as_tibble() %>%
-    gather(msa, residuals) %>%
-    ggplot(mapping = aes(sample = residuals)) +
+    ggplot(mapping = aes(sample = value)) +
         stat_qq_band(alpha = 0.3, conf = 0.95) +
         stat_qq_line() +
         stat_qq_point() +
-        labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Riverside equation") + 
-        facet_wrap(~msa)
+        labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Los Angeles equation")
 
+varp %>%
+    pluck("varresult", "RI", "residuals") %>% 
+    as_tibble() %>%
+    ggplot(mapping = aes(sample = value)) +
+        stat_qq_band(alpha = 0.3, conf = 0.95) +
+        stat_qq_line() +
+        stat_qq_point() +
+        labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Riverside equation")
 
+residuals(varp) %>% 
+    as_tibble() %>%
+    gather(msa, value) %>%
+    ggplot(mapping = aes(sample = value)) +
+        stat_qq_band(alpha = 0.3, conf = 0.95) +
+        stat_qq_line() +
+        stat_qq_point() +
+        labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Los Angeles equation") +
+        facet_wrap(~msa, ncol = 1)
 
 # multivariate Jarque-Bera test
 normality.test(varp)
+
 
 
 #### Granger causality ####
 
 causality(varp, cause = "LA")
 causality(varp, cause = "RI")
+
 
 
 #### Restricted VAR ####
@@ -162,6 +166,7 @@ varp.r.ser$restrictions
 Acoef(varp.r.ser)
 
 
+
 #### Forecasting ####
 
 varp.f <- predict(varp, n.ahead = 16)
@@ -170,9 +175,6 @@ fanchart(varp.f)
 autoplot(varp.f, is.date = TRUE) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(x = "", y = "", title = "Multistep forecast for House Price Index, quarterly, log change")
-
-
-
 
 # next, estimate rolling VAR with window size = window.length
 window.length <- nrow(hpi.ts)
@@ -194,18 +196,18 @@ results <-
     mutate(VAR.model = roll_VAR(LA,RI)) %>%                                                 # estimate models
     filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
     mutate(VAR.coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
-                                           map(as.tibble) %>%
+                                           map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
            VAR.f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
-                                       map(as.tibble) %>%
+                                       map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
 results
 
 # estimate rolling VAR model, create 1 period ahead rolling forecasts - using tsibble
 results <-
     hpi.tbl %>%
-    select(msa, date, dly) %>%
+    dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01") %>%
     mutate(yearq = yearquarter(date)) %>%
@@ -215,11 +217,11 @@ results <-
                               .size = window.length)) %>%                                   # estimate models
     filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
     mutate(VAR.coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
-                                           map(as.tibble) %>%
+                                           map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
            VAR.f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
-                                       map(as.tibble) %>%
+                                       map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
 results
 
@@ -247,6 +249,7 @@ tbl.f.1.rol <-
             mutate(key = "actual"),
         # forecasts
         results %>%
+            as_tibble() %>%
             dplyr::select(date, VAR.f) %>%
             unnest(VAR.f) %>%
             rename(value = fcst) %>%
@@ -270,6 +273,7 @@ tbl.f.1.rol %>%
         theme(legend.position = "none")
 
 
+
 #### Impulse-Response Functions (IRF) ####
 
 # IRFs - based on Choleski decomposition of variance-covariance matrix var(e)
@@ -281,9 +285,12 @@ par(mfcol=c(2,2), cex = 0.6)
 plot(varp.irfs, plot.type = "single")
 
 # arrange IRF data into a tibble to be used with ggplot
+str(varp.irfs)
+
 varp.irfs.tbl <-
-    varp.irfs[1:3] %>%
-    modify_depth(2, as.tibble) %>%
+    varp.irfs %>%
+    keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
+    modify_depth(2, as_tibble) %>%
     modify_depth(1, bind_rows, .id = "impulse") %>%
     map_df(bind_rows, .id = "key") %>%
     gather(response, value, -key, -impulse) %>%
@@ -298,28 +305,29 @@ g <- ggplot(data = varp.irfs.tbl, aes(x = lag, y = irf)) +
     geom_line() +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(x = "", y = "", title = "Orthogonal Impulse Response Functions (rows: response, columns: impulse)") +
-    facet_grid(response ~ impulse, switch = "y") +
-    theme(strip.text.y = element_text(angle = 0))
+    facet_grid(response ~ impulse, switch = "y") 
 g
 
 # plot IRFs using plotly
-library(plotly)
 ggplotly(g)
+
 
 
 #### Forecast Error Variance Decomposition (FEVD) ####
 
 # FEVD - based on Choleski decomposition of variance-covariance matrix var(e)
 varp.fevd <- fevd(varp, n.ahead = 40)
-varp.fevd[[1]][c(1,4,8,40),]
-varp.fevd[[2]][c(1,4,8,40),]
+str(varp.fevd)
+
+varp.fevd[["LA"]][c(1,4,8,40),]
+varp.fevd[["RI"]][c(1,4,8,40),]
 plot(varp.fevd)
-plot(varp.fevd, addbars=8)
+plot(varp.fevd, addbars = 8)
 
 # arrange FEVD data into a tibble to be used with ggplot
 varp.fevd.tbl <-
     varp.fevd %>%
-    modify_depth(1, as.tibble) %>%
+    modify_depth(1, as_tibble) %>%
     map_df(bind_rows, .id = "variable") %>%
     gather(shock, value, -variable) %>%
     group_by(shock, variable) %>%
@@ -340,7 +348,13 @@ g
 # plot FEVD using plotly
 ggplotly(g)
 
-# note: ordering of variables in VAR matters when it comes to IRFs and FEVD
+
+
+#### Note on variable ordering in VAR ####
+
+# ordering of variables in VAR 
+# - does not matter for estimated coefficients and forecasts
+# - matters when it comes to IRFs and FEVD
 
 # ordering 1: LA before RI
 hpi.ts.ord1 <-
