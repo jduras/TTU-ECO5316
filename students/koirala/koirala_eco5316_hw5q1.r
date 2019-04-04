@@ -78,30 +78,9 @@ tnpe.long %>%
 #c use ggseasonplot to create seasonal plots
 
 tnpe_tbl %>%
-  tk_ts(select=dly1, start=c(1975,1)frequency=12)
+  tk_ts(select=dly1, start=c('1975','1'),frequency=12)
 #%>% ggseasonplot()
 
-tnpe.long<- tnpe_tbl %>%
-  gather(variable, value, -date) %>%
-  mutate(variable = factor(variable, ordered = TRUE,
-                           levels = c("y", "dy", "ly", "dly1", "dly12", "d2ly12_1"),
-                           labels = c("y", 
-                                      expression(paste(Delta,"y")),
-                                      "ln(E)",
-                                      expression(paste(Delta,"ln(y)")),
-                                      expression(paste(Delta[12],"ln(y)")),
-                                      expression(paste(Delta, Delta[12],"ln(y)")))))
-
-
-tnpe.long %>%
-  ggplot( aes(x=date, y=value))+
-  geom_line()+
-  labs(x="",y="")+
-  facet_wrap(~variable, scales = "free_y", labeller = label_parsed)
-theme(strip.text = element_text(hjust = 0),
-      strip.background = element_blank())
-tnpe_tbl_all %>%tk_ts(select = y, start = c(1975, 1), frequency = 12)%>%ggseasonplot(polar=TRUE)
-tnpe_tbl_all %>%tk_ts(select = dly1, start = c(1975, 1), frequency = 12)%>%ggseasonplot(polar=TRUE)
 
 
 #d 
