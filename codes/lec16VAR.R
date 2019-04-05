@@ -11,20 +11,28 @@ library(vars)           # package that allows to estimate and analyze VAR models
 library(stargazer)
 library(listviewer)
 library(qqplotr)
+library(scales)
 library(plotly)
 
 # set default theme for ggplot2
 theme_set(theme_bw() +
-              theme(strip.text = element_text(hjust = 0),
+              theme(strip.text.x = element_text(hjust = 0),
+                    strip.text.y = element_text(hjust = 1),
+                    axis.ticks = element_blank(),
                     strip.background = element_blank()))
 
 
 #### Data ####
 
 # obtain data on house price index for Los Angeles MSA and for Riverside MSA
-hpi.tbl <-
+hpi.raw <- 
     tq_get(c("ATNHPIUS31084Q","ATNHPIUS40140Q"), get = "economic.data",
-           from  = "1940-01-01", to = "2017-12-31") %>%
+           from  = "1940-01-01", to = "2017-12-31")
+
+write_csv(hpi.raw, path = "hpi.raw.csv")
+
+hpi.tbl <-
+    hpi.raw %>%
     group_by(symbol) %>%
     mutate(y = price,
            dly = log(y) - lag(log(y)),
@@ -40,11 +48,13 @@ hpi.tbl %>%
                                        variable == "dly" ~ "House Price Index, quarterly, log change")) %>%
     ggplot(aes(x = date, y = value, group = msa)) +
         geom_line(aes(col = msa, linetype = msa)) +
-        scale_color_manual(name = "MSA", values = c("blue","red"), labels = c("Los Angeles","Riverside")) +
-        scale_linetype_manual(name = "MSA", values = c("solid","dashed"), labels = c("Los Angeles","Riverside")) +
-        labs(x = "", y = "", linetype = "") +
+        scale_color_manual(values = c("blue","red"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        scale_linetype_manual(values = c("solid","dashed"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        labs(x = "", y = "", color = "", linetype = "") +
         facet_wrap(~variable_labels, ncol = 1, scales = "free_y") +
-        theme(legend.position = c(0.1, 0.9))
+        theme(legend.position = c(0.1, 0.94),
+              legend.key = element_blank(),
+              legend.background = element_blank())
 
 # convert log change in house price index in Los Angeles MSA and for Riverside MSA into ts
 hpi.ts <-
@@ -82,6 +92,12 @@ jsonedit(var1, mode = "view")
 lm1 <- var1$varresult
 lmp <- varp$varresult
 
+# report results for all equations
+stargazer(lm1, lmp,
+          type  ="text", column.labels = rep(colnames(hpi.ts), 2),
+          dep.var.labels.include = FALSE)
+
+# report results for selected equations only
 stargazer(lm1$LA, lm1$RI, lmp$LA, lmp$RI,
           type  ="text", column.labels = rep(colnames(hpi.ts), 2),
           dep.var.labels.include = FALSE)
@@ -90,9 +106,6 @@ stargazer(lm1$RI, lmp$RI,
           type  ="text", column.labels = c("RI VAR(1)", "RI VAR(3)"),
           dep.var.labels.include = FALSE)
 
-stargazer(lm1, lmp,
-          type  ="text", column.labels = rep(colnames(hpi.ts), 2),
-          dep.var.labels.include = FALSE)
 
 
 # plot residuals and their ACF and PACF
@@ -261,7 +274,7 @@ tbl.f.1.rol <-
 # plot the 1 period ahead rolling forecasts
 tbl.f.1.rol %>%
     dplyr::filter(date >= "2000-01-01") %>%
-    mutate(msa.f = factor(msa, labels = c("Los Angeles","Riverside"))) %>%
+    mutate(msa.f = factor(msa, labels = c("Los Angeles", "Riverside"))) %>%
     ggplot(aes(x = date, y = value, col = key, group = key)) +
         geom_ribbon(aes(ymin = lower, ymax = upper), color = NA, fill = "steelblue", alpha = 0.2) +
         geom_line(size = 0.7) +
@@ -284,33 +297,42 @@ varp.irfs <- irf(varp, n.ahead = 40)
 par(mfcol=c(2,2), cex = 0.6)
 plot(varp.irfs, plot.type = "single")
 
-# arrange IRF data into a tibble to be used with ggplot
 str(varp.irfs)
 
-varp.irfs.tbl <-
-    varp.irfs %>%
-    keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
-    modify_depth(2, as_tibble) %>%
-    modify_depth(1, bind_rows, .id = "impulse") %>%
-    map_df(bind_rows, .id = "key") %>%
-    gather(response, value, -key, -impulse) %>%
-    group_by(key, impulse, response) %>%
-    mutate(lag = row_number()) %>%
-    ungroup() %>%
-    spread(key, value)
+ggirf <- function(var.model, n.ahead = 10, impulse = NULL, response = NULL) {
+    # IRFs - based on Choleski decomposition of variance-covariance matrix var(e)
+    var.irfs <- irf(var.model, impulse = impulse, response = response, n.ahead = n.ahead)
 
-# plot IRFs using ggplot
-g <- ggplot(data = varp.irfs.tbl, aes(x = lag, y = irf)) +
-    geom_ribbon(aes(x = lag, ymin = Lower, ymax = Upper), fill = "gray50", alpha = .3) +
-    geom_line() +
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(x = "", y = "", title = "Orthogonal Impulse Response Functions (rows: response, columns: impulse)") +
-    facet_grid(response ~ impulse, switch = "y") 
-g
+    # arrange IRF data into a tibble to be used with ggplot
+    var.irfs.tbl <-
+        var.irfs %>%
+        keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
+        modify_depth(2, as_tibble) %>%
+        modify_depth(1, bind_rows, .id = "impulse") %>%
+        map_df(bind_rows, .id = "key") %>%
+        gather(response, value, -key, -impulse) %>%
+        group_by(key, impulse, response) %>%
+        mutate(lag = row_number()) %>%
+        ungroup() %>%
+        spread(key, value)
+
+    # plot IRFs using ggplot
+    g <- ggplot(data = var.irfs.tbl, aes(x = lag, y = irf)) +
+        geom_ribbon(aes(x = lag, ymin = Lower, ymax = Upper), fill = "gray50", alpha = .3) +
+        geom_line() +
+        geom_hline(yintercept = 0, linetype = "dashed") +
+        # scale_y_continuous(labels = scales::percent_format(accuracy = .1)) +
+        labs(x = "", y = "", title = "Orthogonal Impulse Response Functions (rows: response, columns: impulse)") +
+        facet_grid(response ~ impulse, switch = "y", scales = "free_y") 
+    g
+}
+
+ggirf(var1, n.ahead = 40)
+ggirf(varp, n.ahead = 40)
 
 # plot IRFs using plotly
-ggplotly(g)
-
+ggirf(var1, n.ahead = 40) %>% ggplotly()
+ggirf(varp, n.ahead = 40) %>% ggplotly()
 
 
 #### Forecast Error Variance Decomposition (FEVD) ####
