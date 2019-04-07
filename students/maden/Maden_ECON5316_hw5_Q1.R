@@ -3,14 +3,10 @@ library(magrittr)
 library(tidyverse)
 library(tidyquant)
 library(timetk)
-library(ggfortify)
-library(forecast)
 library(ggplot2)
 library(tibbletime)
 library(urca)
 library(tictoc)
-
-
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -19,7 +15,6 @@ library(ggplot2)
 library(ggfortify)
 library(egg)
 library(tsibble)
-library(timetk)
 library(lubridate)
 library(zoo)
 library(forecast)
@@ -34,7 +29,7 @@ theme_set(theme_bw())
 
 
 tnpe_tbl_all <-
-  tq_get("PAYNSA", get = "economic.data", from = "1975-01-01", to = "2019-02-01") %>%
+  tq_get("PAYNSA", get = "economic.data", from = "1975-01-01", to = "2019-02-01")
 
 # transforming the data  
   
@@ -80,8 +75,8 @@ tnpe.l %>%
 
 
 tnpe_tbl %>% 
-  tk_ts(select=dly1,start=c(1975,1)frequency=12) 
-#%>% ggseasonplot()
+  tk_ts(select=dly1,start=c(1975,1),frequency=12) %>% 
+  ggseasonplot(polar =TRUE)
 
 
 
@@ -219,8 +214,15 @@ tk_ts(select = d2ly12_1, start = train.start, frequency = 12)
 tnpe.ts.1<-tnpe.ts%>%
   tk_ts( start=train.start,end=train.end, frequency=12)
 
-tnpe.ts.2<-tnpe.ts %>%
-  tk_ts(start=test.start,end=test.end, frequency = 12)
+tnpe.ts.2<-
+  tnpe_tbl%>%
+  ts(start=c(1975,1), frequency = 12) %>%
+  tk_tbl(rename_index = "yearm") %>%
+  mutate(yearm=yearmonth(yearm)) %>%
+  filter( !is.na(d2ly12_1))%>%
+  filter(yearm >= yearmonth(test.start))%>%
+  tk_ts( start=train.start,end=train.end, frequency=12)
+
 
 #ACF PACF test for arima model
 #Plots the ACF and PACF for the d2ly12_1
@@ -329,15 +331,18 @@ tnpe.actual.1<-
 
 tnpe.actual.2<- 
   tnpe_tbl_1  %>%
+  filter(yearm >= yearmonth(test.start)) %>%
   tk_ts(select=y, start = test.start, end=test.end, frequency = 12)
 
 y.forecast<-
    m2_f_1_rol %>%
-  mutate(yearm = yearmonth(date))
- tnpe.forecast<-
+  mutate(yearm = yearmonth(yearm))
+ 
+tnpe.forecast<-
   y.forecast%>%
   tk_ts(select=y,start = test.start, end=test.end, frequency = 12)
-y.forecast<-
-  select(tnpe.error.2,y)
 
-error<- y.actual-tnpe.error.2
+
+error<- tnpe.actual.2-tnpe.forecast
+
+autoplot(error)
