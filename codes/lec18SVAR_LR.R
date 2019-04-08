@@ -6,6 +6,7 @@ library(readr)
 library(tidyquant)
 library(timetk)
 library(vars)
+library(ggfortify)
 library(plotly)
 
 theme_set(theme_bw() + 
@@ -17,19 +18,17 @@ theme_set(theme_bw() +
 
 #### Data ####
 
-quandl_api_key('DLk9RQrfTVkD4UTKc7op')
-
-gdp_raw <- tq_get("GDPC1", get  = "economic.data", from = "1947-01-01", to = "2018-12-31")
-unrate_raw <- tq_get("UNRATE", get  = "economic.data", from = "1947-01-01", to = "2018-12-31")
+gdp_raw <- tq_get("GDPC1", get = "economic.data", from = "1947-01-01", to = "2018-12-31")
+unrate_raw <- tq_get("UNRATE", get = "economic.data", from = "1947-01-01", to = "2018-12-31")
 
 if (is.null(nrow(gdp_raw))) {
-    load(file = "gdp_raw.csv")  
+    read_csv(file = "gdp_raw.csv")  
 } else {
     write_csv(gdp_raw, path = "gdp_raw.csv")
 }
  
 if (is.null(nrow(unrate_raw))) {
-    load(file = "unrate_raw.csv")  
+    read_csv(file = "unrate_raw.csv")  
 } else {
     write_csv(unrate_raw, path = "unrate_raw.csv")
 }   
@@ -41,10 +40,16 @@ y_tbl <- inner_join(gdp_raw %>%
                         mutate(dlrGDP = 100*(log(rGDP) - lag(log(rGDP)))),
                     unrate_raw %>%
                         rename(UR = price) %>%
-                        tq_transmute(select = UR, mutate_fun = to.quarterly) %>%
-                        mutate(date = as.Date(date)),
+                        # transform from monthly to quarterly frequency - option 1: last observation is used
+                        # rename(yearq = date) %>%
+                        # tq_transmute(select = UR, mutate_fun = to.quarterly) %>%
+                        # transform from monthly to quarterly frequency - option 2: use average
+                        mutate(yearq = as.yearqtr(date)) %>%
+                        group_by(yearq) %>%
+                        summarise(UR = mean(UR)) %>%
+                        ungroup() %>%
+                        mutate(date = as.Date(yearq)),
                     by = "date") %>%
-    mutate(yearq = as.yearqtr(date)) %>%
     dplyr::select(yearq, dlrGDP, UR)
 
 # plot log change in GDP and unemployment rate
@@ -57,20 +62,29 @@ y_tbl %>%
         facet_wrap(~variable, ncol = 1, scales = "free_y")
 
 # Blanchard and Quah use 1950Q2 to 1987Q4 as sample, and demean the data
+y_ts <- y_tbl %>%
+    filter(yearq >= "1950 Q2", yearq <= "1987 Q4") %>%
+    mutate_at(vars(dlrGDP,UR), funs(. - mean(.))) %>%
+    tk_ts(select= c("dlrGDP", "UR"), start = .$yearq[1])
+
 y_xts <- y_tbl %>%
     filter(yearq >= "1950 Q2", yearq <= "1987 Q4") %>%
     mutate_at(vars(dlrGDP,UR), funs(. - mean(.))) %>%
     tk_xts(select= c("dlrGDP","UR"), date_var = yearq)
 
 # plot log change in GDP and unemployment rate for 1950Q2 to 1987Q4 sample
-autoplot(y_xts)
+# with ggfortify package autoplot works also for ts, not just xts  
+autoplot(y_ts) 
+autoplot(y_xts) 
 
 
 #### SVAR with long run restrictions ####
 
 # first estimate reduced form VAR
-VARselect(y_xts, lag.max = 8)
-myVAR <- VAR(y_xts, ic = "SC", lag.max = 8)
+# xts works fine in VARselect, VAR, and also when creating forecast using predict
+# but plotting the forecast using autoplot gives an error, this does not happen with ts 
+VARselect(y_ts, lag.max = 8)
+myVAR <- VAR(y_ts, ic = "SC", lag.max = 8)
 summary(myVAR)
 
 # impose Blanchard-Quah long run restriction:
@@ -166,7 +180,7 @@ g <- ggplot(data = mySVAR_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
     geom_col(position = position_stack(reverse = TRUE)) +
     scale_fill_manual(values = c("gray80", "gray40")) +
     labs(x = "horizon", y = "fraction of overall variance", title = "Forecast Error Variance Decomposition") +
-    facet_grid(variable ~ .)
+    facet_wrap(variable ~ ., ncol = 1)
 g
 
 ggplotly(g)
