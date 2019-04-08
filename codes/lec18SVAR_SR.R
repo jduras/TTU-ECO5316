@@ -40,10 +40,11 @@ VARselect(prices.ts, lag.max = 12)
 
 # first estimate reduced form VAR
 myVAR <- VAR(prices.ts, ic = "AIC", lag.max = 12)
+# myVAR <- restrict(myVAR, method = "ser", thresh = 2.0)
 
 # extract estimation results and use stargazer package to report them
 myVAR$varresult %>%
-    stargazer(type = "text",
+    stargazer(type = "text", no.space = TRUE,
               column.labels = colnames(prices.ts),
               dep.var.labels.include = FALSE)
 
