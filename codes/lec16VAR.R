@@ -22,17 +22,18 @@ theme_set(theme_bw() +
                     strip.background = element_blank()))
 
 
+
 #### Data ####
 
 # obtain data on house price index for Los Angeles MSA and for Riverside MSA
-hpi.raw <- 
+hpi_raw <- 
     tq_get(c("ATNHPIUS31084Q","ATNHPIUS40140Q"), get = "economic.data",
            from  = "1940-01-01", to = "2017-12-31")
 
-write_csv(hpi.raw, path = "hpi.raw.csv")
+write_csv(hpi_raw, path = "hpi_raw.csv")
 
-hpi.tbl <-
-    hpi.raw %>%
+hpi_tbl <-
+    hpi_raw %>%
     group_by(symbol) %>%
     mutate(y = price,
            dly = log(y) - lag(log(y)),
@@ -42,7 +43,7 @@ hpi.tbl <-
     dplyr::select(msa, date, y, dly)
 
 # plot house price index and log change in house price index in Los Angeles MSA and for Riverside MSA
-hpi.tbl %>%
+hpi_tbl %>%
     gather(variable, value, -date, -msa) %>%
     mutate(variable_labels = case_when(variable == "y" ~ "House Price Index, quarterly",
                                        variable == "dly" ~ "House Price Index, quarterly, log change")) %>%
@@ -57,26 +58,28 @@ hpi.tbl %>%
               legend.background = element_blank())
 
 # convert log change in house price index in Los Angeles MSA and for Riverside MSA into ts
-hpi.ts <-
-    hpi.tbl %>%
+hpi_ts <-
+    hpi_tbl %>%
     dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01" & date <= "2012-10-01") %>%
     tk_ts(select = c("LA","RI"), start = 1976.5, frequency = 4)
 
+autoplot(hpi_ts)
+
 
 
 #### VAR ####
 
-VARselect(hpi.ts, lag.max = 8, type = "const")
+VARselect(hpi_ts, lag.max = 8, type = "const")
 
 # estimate a reduced form VAR(1)
-var1 <- VAR(hpi.ts, p = 1, type = "const")
+var1 <- VAR(hpi_ts, p = 1, type = "const")
 var1
 summary(var1)
 
 # estimate VAR(p) using AIC to select p
-varp <- VAR(hpi.ts, ic = "AIC", lag.max = 8, type = "const")
+varp <- VAR(hpi_ts, ic = "AIC", lag.max = 8, type = "const")
 varp
 summary(varp)
 
@@ -88,18 +91,18 @@ names(varp$varresult)
 
 jsonedit(var1, mode = "view")
 
-# use stargazer package to report results of VAR estimation
+# use stargazer package to report var_roll_results of VAR estimation
 lm1 <- var1$varresult
 lmp <- varp$varresult
 
-# report results for all equations
+# report var_roll_results for all equations
 stargazer(lm1, lmp,
-          type  ="text", column.labels = rep(colnames(hpi.ts), 2),
+          type  ="text", column.labels = rep(colnames(hpi_ts), 2),
           dep.var.labels.include = FALSE)
 
-# report results for selected equations only
+# report var_roll_results for selected equations only
 stargazer(lm1$LA, lm1$RI, lmp$LA, lmp$RI,
-          type  ="text", column.labels = rep(colnames(hpi.ts), 2),
+          type  ="text", column.labels = rep(colnames(hpi_ts), 2),
           dep.var.labels.include = FALSE)
 
 stargazer(lm1$RI, lmp$RI,
@@ -162,64 +165,66 @@ causality(varp, cause = "RI")
 # estimate restricted VAR - based on Granger causality test eliminate lags of RI from the equation for  LA
 
 # define a  matrix with restictions
-mat.r <- matrix(1, nrow = 2, ncol = 7)
-mat.r[1, c(2, 4, 6)] <- 0
-mat.r
-varp.r <- restrict(varp, method = "manual", resmat = mat.r)
-varp.r
-summary(varp.r)
-varp.r$restrictions
-Acoef(varp.r)
+mat_r <- matrix(1, nrow = 2, ncol = 7)
+mat_r[1, c(2, 4, 6)] <- 0
+mat_r
+varp_r <- restrict(varp, method = "manual", resmat = mat_r)
+varp_r
+summary(varp_r)
+varp_r$restrictions
+Acoef(varp_r)
 
 # estimate restricted VAR - keep only variables with t-value larger than 2.0
-varp.r.ser <- restrict(varp, method = "ser", thresh = 2.0)
-varp.r.ser
-summary(varp.r.ser)
-varp.r.ser$restrictions
-Acoef(varp.r.ser)
+varp_r_ser <- restrict(varp, method = "ser", thresh = 2.0)
+varp_r_ser
+summary(varp_r_ser)
+varp_r_ser$restrictions
+Acoef(varp_r_ser)
 
 
 
 #### Forecasting ####
 
-varp.f <- predict(varp, n.ahead = 16)
-plot(varp.f)
-fanchart(varp.f)
-autoplot(varp.f, is.date = TRUE) +
+# create 1 to 16 quarter ahead forecast
+varp_f <- predict(varp, n.ahead = 16)
+
+plot(varp_f)
+fanchart(varp_f)
+
+autoplot(varp_f, is.date = TRUE) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(x = "", y = "", title = "Multistep forecast for House Price Index, quarterly, log change")
 
-# next, estimate rolling VAR with window size = window.length
-window.length <- nrow(hpi.ts)
+# next, estimate rolling VAR with window size = window_length
+window_length <- nrow(hpi_ts)
 # create rolling VAR function with rollify from tibbletime package
-roll_VAR <- rollify(function(LA, RI) {
+rolling_var <- rollify(function(LA, RI) {
                         x <- cbind(LA, RI)
                         VAR(x, ic = "SC", lag.max = 8, type = "const")
                         },
-                    window = window.length, unlist = FALSE)
-
+                    window = window_length, unlist = FALSE)
 
 # estimate rolling VAR model, create 1 period ahead rolling forecasts - using tibbletime
-results <-
-    hpi.tbl %>%
+var_roll_results <-
+    hpi_tbl %>%
     dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01") %>%
     as_tbl_time(index = date) %>%                                                           # covert to tibbletime
-    mutate(VAR.model = roll_VAR(LA,RI)) %>%                                                 # estimate models
+    mutate(VAR.model = rolling_var(LA,RI)) %>%                                                 # estimate models
     filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(VAR.coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
+    mutate(var_coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
                                            map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
-           VAR.f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
+           var_f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
                                        map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
-results
+var_roll_results
 
 # estimate rolling VAR model, create 1 period ahead rolling forecasts - using tsibble
-results <-
-    hpi.tbl %>%
+var_roll_results <-
+    hpi_tbl %>%
     dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01") %>%
@@ -227,21 +232,21 @@ results <-
     as_tsibble(index = yearq) %>%
     mutate(VAR.model = slide2(LA, RI, ~ bind_cols(LA = .x, RI = .y) %>% 
                                   VAR(ic = "SC", lag.max = 8, type = "const"), 
-                              .size = window.length)) %>%                                   # estimate models
+                              .size = window_length)) %>%                                   # estimate models
     filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(VAR.coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
+    mutate(var_coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
                                            map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
-           VAR.f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
+           var_f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
                                        map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
-results
+var_roll_results
 
 # plot estimated coefficients with confidence intervals
-results %>%
+var_roll_results %>%
     as_tibble() %>%
-    dplyr::select(date, VAR.coefs) %>%
+    dplyr::select(date, var_coefs) %>%
     unnest() %>%
     ggplot(aes(x = date, y = estimate, group = term)) +
         geom_line(color = "royalblue") +
@@ -249,22 +254,22 @@ results %>%
         geom_hline(yintercept = 0, color = "black")+
         labs(x = "", y = "",
              title = "Coefficient estimates",
-             subtitle = paste(window.length, "month rolling window VAR model"))+
+             subtitle = paste(window_length, "month rolling window VAR model"))+
         facet_grid(term ~ msa, scales = "free_y")
 
 # 1 period ahead rolling forecasts
-tbl.f.1.rol <-
+var_roll_f <-
     bind_rows(
         # actual data
-        hpi.tbl %>%
+        hpi_tbl %>%
             dplyr::select(date, msa, dly) %>%
             rename(value = dly) %>%
             mutate(key = "actual"),
         # forecasts
-        results %>%
+        var_roll_results %>%
             as_tibble() %>%
-            dplyr::select(date, VAR.f) %>%
-            unnest(VAR.f) %>%
+            dplyr::select(date, var_f) %>%
+            unnest(var_f) %>%
             rename(value = fcst) %>%
             mutate(key = "forecast",
                    date = date %m+% months(3))
@@ -272,7 +277,7 @@ tbl.f.1.rol <-
     arrange(date, msa)
 
 # plot the 1 period ahead rolling forecasts
-tbl.f.1.rol %>%
+var_roll_f %>%
     dplyr::filter(date >= "2000-01-01") %>%
     mutate(msa.f = factor(msa, labels = c("Los Angeles", "Riverside"))) %>%
     ggplot(aes(x = date, y = value, col = key, group = key)) +
@@ -290,65 +295,70 @@ tbl.f.1.rol %>%
 #### Impulse-Response Functions (IRF) ####
 
 # IRFs - based on Choleski decomposition of variance-covariance matrix var(e)
-var1.irfs <- irf(var1, n.ahead = 40)
-varp.irfs <- irf(varp, n.ahead = 40)
+var1_irf <- irf(var1, n.ahead = 40)
+varp_irf <- irf(varp, n.ahead = 40)
 
 # plot IRFs using plot from vars package
-par(mfcol=c(2,2), cex = 0.6)
-plot(varp.irfs, plot.type = "single")
+par(mfcol = c(2,2), cex = 0.6)
+plot(var1_irf, plot.type = "single")
+plot(varp_irf, plot.type = "single")
 
-str(varp.irfs)
+str(varp_irfs)
 
-ggirf <- function(var.model, n.ahead = 10, impulse = NULL, response = NULL) {
-    # IRFs - based on Choleski decomposition of variance-covariance matrix var(e)
-    var.irfs <- irf(var.model, impulse = impulse, response = response, n.ahead = n.ahead)
 
+# same as above, but using ggplot
+ggirf <- function(var_irf, n.ahead = NULL, impulse = NULL, response = NULL) {
     # arrange IRF data into a tibble to be used with ggplot
-    var.irfs.tbl <-
-        var.irfs %>%
+    var_irf_tbl <-
+        var_irf %>%
         keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
         modify_depth(2, as_tibble) %>%
-        modify_depth(1, bind_rows, .id = "impulse") %>%
-        map_df(bind_rows, .id = "key") %>%
-        gather(response, value, -key, -impulse) %>%
-        group_by(key, impulse, response) %>%
+        modify_depth(1, bind_rows, .id = "key_impulse") %>%
+        map_df(bind_rows, .id = "component") %>%
+        gather(key_response, value, -component, -key_impulse) %>%
+        group_by(component, key_impulse, key_response) %>%
         mutate(lag = row_number()) %>%
         ungroup() %>%
-        spread(key, value)
-
+        spread(component, value)
+    
+    if (!is.null(impulse)) var_irf_tbl %<>% filter(key_impulse %in% impulse)
+    if (!is.null(response)) var_irf_tbl %<>% filter(key_response %in% response)
+    if (!is.null(n.ahead)) var_irf_tbl %<>% filter(lag <= n.ahead)
+    
     # plot IRFs using ggplot
-    g <- ggplot(data = var.irfs.tbl, aes(x = lag, y = irf)) +
+    g <- ggplot(data = var_irf_tbl, aes(x = lag, y = irf)) +
         geom_ribbon(aes(x = lag, ymin = Lower, ymax = Upper), fill = "gray50", alpha = .3) +
         geom_line() +
         geom_hline(yintercept = 0, linetype = "dashed") +
         # scale_y_continuous(labels = scales::percent_format(accuracy = .1)) +
         labs(x = "", y = "", title = "Orthogonal Impulse Response Functions (rows: response, columns: impulse)") +
-        facet_grid(response ~ impulse, switch = "y", scales = "free_y") 
+        facet_grid(key_response ~ key_impulse, switch = "y", scales = "free_y") 
     g
 }
 
-ggirf(var1, n.ahead = 40)
-ggirf(varp, n.ahead = 40)
+var1_irf %>% ggirf()
+varp_irf %>% ggirf()
 
 # plot IRFs using plotly
-ggirf(var1, n.ahead = 40) %>% ggplotly()
-ggirf(varp, n.ahead = 40) %>% ggplotly()
+var1_irf %>% ggirf() %>% ggplotly()
+varp_irf %>% ggirf() %>% ggplotly()
+
 
 
 #### Forecast Error Variance Decomposition (FEVD) ####
 
 # FEVD - based on Choleski decomposition of variance-covariance matrix var(e)
-varp.fevd <- fevd(varp, n.ahead = 40)
-str(varp.fevd)
+varp_fevd <- fevd(varp, n.ahead = 40)
+str(varp_fevd)
 
-varp.fevd[["LA"]][c(1,4,8,40),]
-varp.fevd[["RI"]][c(1,4,8,40),]
-plot(varp.fevd)
-plot(varp.fevd, addbars = 8)
+varp_fevd[["LA"]][c(1,4,8,40),]
+varp_fevd[["RI"]][c(1,4,8,40),]
+plot(varp_fevd)
+plot(varp_fevd, addbars = 8)
 
 # arrange FEVD data into a tibble to be used with ggplot
-varp.fevd.tbl <-
-    varp.fevd %>%
+varp_fevd_tbl <-
+    varp_fevd %>%
     modify_depth(1, as_tibble) %>%
     map_df(bind_rows, .id = "variable") %>%
     gather(shock, value, -variable) %>%
@@ -358,7 +368,7 @@ varp.fevd.tbl <-
 
 # plot FEVD using ggplot
 library(wesanderson)
-g <- ggplot(data = varp.fevd.tbl, aes(x = horizon, y = value, fill = shock)) +
+g <- ggplot(data = varp_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
     geom_col(position = position_stack(reverse = TRUE)) +
     # scale_fill_manual(values = wes_palette("FantasticFox1")[c(3,5)]) +
     # scale_fill_manual(values = wes_palette("GrandBudapest1")[c(4,3)]) +
@@ -379,34 +389,34 @@ ggplotly(g)
 # - matters when it comes to IRFs and FEVD
 
 # ordering 1: LA before RI
-hpi.ts.ord1 <-
-    hpi.tbl %>%
+hpi_ts_ord1 <-
+    hpi_tbl %>%
     dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01" & date <= "2012-10-01") %>%
     tk_ts(select = c("LA","RI"), start = 1976.75, frequency = 4)
 
 # ordering 2: RI before LA
-hpi.ts.ord2 <-
-    hpi.tbl %>%
+hpi_ts_ord2 <-
+    hpi_tbl %>%
     dplyr::select(msa, date, dly) %>%
     spread(msa, dly) %>%
     filter(date >= "1976-07-01" & date <= "2012-10-01") %>%
     tk_ts(select = c("RI","LA"), start = 1976.75, frequency = 4)
 
 # reduced form VAR(1)
-var1.ord1 <- VAR(hpi.ts.ord1, p = 1, type = "const")
-var1.ord2 <- VAR(hpi.ts.ord2, p = 1, type = "const")
+var1_ord1 <- VAR(hpi_ts_ord1, p = 1, type = "const")
+var1_ord2 <- VAR(hpi_ts_ord2, p = 1, type = "const")
 
 # IRF based on Choleski decomposition of var(e)
-var1.irfs.ord1 <- irf(var1.ord1, n.ahead = 40)
-var1.irfs.ord2 <- irf(var1.ord2, n.ahead = 40)
+var1_irfs_ord1 <- irf(var1_ord1, n.ahead = 40)
+var1_irfs_ord2 <- irf(var1_ord2, n.ahead = 40)
 par(mfcol = c(2,2), cex = 0.6)
-plot(var1.irfs.ord1, plot.type = "single")
-plot(var1.irfs.ord2, plot.type = "single")
+plot(var1_irfs_ord1, plot.type = "single")
+plot(var1_irfs_ord2, plot.type = "single")
 
 # FEVD based on Choleski decomposition of var(e)
-var1.fevd.ord1 <- fevd(var1.ord1, n.ahead = 40)
-var1.fevd.ord2 <- fevd(var1.ord2, n.ahead = 40)
-plot(var1.fevd.ord1)
-plot(var1.fevd.ord2)
+var1_fevd_ord1 <- fevd(var1_ord1, n.ahead = 40)
+var1_fevd_ord2 <- fevd(var1_ord2, n.ahead = 40)
+plot(var1_fevd_ord1)
+plot(var1_fevd_ord2)
