@@ -1,13 +1,13 @@
 
 # example of SVAR with long run restriction - Blanchard and Quah (1989)
 
+library(vars)
+library(plotly)
 library(magrittr)
 library(readr)
-library(tidyquant)
 library(timetk)
-library(vars)
+library(tidyquant)
 library(ggfortify)
-library(plotly)
 
 theme_set(theme_bw() + 
               theme(strip.text.x = element_text(hjust = 0),
@@ -22,13 +22,13 @@ gdp_raw <- tq_get("GDPC1", get = "economic.data", from = "1947-01-01", to = "201
 unrate_raw <- tq_get("UNRATE", get = "economic.data", from = "1947-01-01", to = "2018-12-31")
 
 if (is.null(nrow(gdp_raw))) {
-    read_csv(file = "data/gdp_raw.csv")  
+    gdp_raw <- read_csv(file = "data/gdp_raw.csv")  
 } else {
     write_csv(gdp_raw, path = "data/gdp_raw.csv")
 }
  
 if (is.null(nrow(unrate_raw))) {
-    read_csv(file = "data/unrate_raw.csv")  
+    unrate_raw <- read_csv(file = "data/unrate_raw.csv")  
 } else {
     write_csv(unrate_raw, path = "data/unrate_raw.csv")
 }   
@@ -84,29 +84,30 @@ autoplot(y_xts)
 # xts works fine in VARselect, VAR, and also when creating forecast using predict
 # but plotting the forecast using autoplot gives an error, this does not happen with ts 
 VARselect(y_ts, lag.max = 8)
-myVAR <- VAR(y_ts, ic = "SC", lag.max = 8)
-summary(myVAR)
+mod_var <- VAR(y_ts, ic = "SC", lag.max = 8)
+summary(mod_var)
 
 # impose Blanchard-Quah long run restriction:
 #  row 1 column 2 element of the cumulative effect matrix is going to be restricted to 0
 ?BQ
-mySVAR <- BQ(myVAR)
-summary(mySVAR)
+mod_svar <- BQ(mod_var)
+summary(mod_svar)
+
 
 
 #### IRFs ####
 
 # standard non-cumulative IRFs
-myIRF <- irf(mySVAR, n.ahead = 40, ci = .9)
+svar_irf <- irf(mod_svar, n.ahead = 40, ci = .9)
 # cumulative IRFs
-myIRF_c <- irf(mySVAR, n.ahead = 40, ci = .9, cumulative = TRUE)
+svar_irf_c <- irf(mod_svar, n.ahead = 40, ci = .9, cumulative = TRUE)
 
 
 # arrange IRF data into a tibble to be used with ggplot
 # and plot IRFs using ggplot
-myIRF_tbl <-
+svar_irf_tbl <-
     bind_rows(# standard IRFs for UR
-              myIRF %>%
+              svar_irf %>%
                   keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
                   modify_depth(2, as_tibble) %>%
                   modify_depth(1, bind_rows, .id = "impulse") %>%
@@ -114,7 +115,7 @@ myIRF_tbl <-
                   dplyr::select(-dlrGDP) %>%
                   gather(response, value, -key, -impulse),
               # cumulative IRFs for dlrGDP
-              myIRF_c %>%
+              svar_irf_c %>%
                   keep(names(.) %in% c("irf", "Lower", "Upper")) %>%
                   modify_depth(2, as_tibble) %>%
                   modify_depth(1, bind_rows, .id = "impulse") %>%
@@ -128,7 +129,7 @@ myIRF_tbl <-
     mutate(value = if_else(impulse == "UR", -value, value)) %>%
     spread(key, value)
 
-g <- myIRF_tbl %>%
+g <- svar_irf_tbl %>%
     mutate(impulse_label = case_when(impulse == "dlrGDP" ~ 1,
                                     impulse == "UR"     ~ 2) %>% factor(labels = c("technology shock","non-technology shock")),
            response_label = case_when(response == "dlrGDP" ~ "log(GDP)",
@@ -142,31 +143,30 @@ g <- myIRF_tbl %>%
 g
 
 # plot IRFs using plotly
-library(plotly)
 ggplotly(g)
 
 
 
 # note that by construction the contemporaneous impact matrix is identical to the elements of the IRFs for period 0 (impact period)
-summary(mySVAR)
-myIRF_c$irf[[1]][1,]
-myIRF_c$irf[[2]][1,]
+summary(mod_svar)
+svar_irf_c$irf[[1]][1,]
+svar_irf_c$irf[[2]][1,]
 # and that the long run impact matrix from is essentially the same as the elements of the IRFs if the horizon is large enough, e.g. 100 periods
-myIRF_c <- irf(mySVAR, n.ahead = 100, ci = .9, cumulative = TRUE, boot = FALSE)
-myIRF_c$irf[[1]][101,]
-myIRF_c$irf[[2]][101,]
+svar_irf_c <- irf(mod_svar, n.ahead = 100, ci = .9, cumulative = TRUE, boot = FALSE)
+svar_irf_c$irf[[1]][101,]
+svar_irf_c$irf[[2]][101,]
 
 
 
 #### FEVD ####
-mySVAR %>% fevd(n.ahead = 40) %>% plot(addbars = 10) 
+mod_svar %>% fevd(n.ahead = 40) %>% plot(addbars = 10) 
 
 # same as above, but using ggplot
-mySVAR_fevd <- fevd(mySVAR, n.ahead = 40)
+mod_svar_fevd <- fevd(mod_svar, n.ahead = 40)
     
 # arrange FEVD data into a tibble to be used with ggplot
-mySVAR_fevd_tbl <-
-    mySVAR_fevd %>%
+svar_fevd_tbl <-
+    mod_svar_fevd %>%
     modify_depth(1, as_tibble) %>%
     map_df(bind_rows, .id = "variable") %>%
     gather(shock, value, -variable) %>%
@@ -176,7 +176,7 @@ mySVAR_fevd_tbl <-
     mutate(shock = recode(shock, dlrGDP = "technology", UR = "non-technology"))
 
 # plot FEVD using ggplot
-g <- ggplot(data = mySVAR_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
+g <- ggplot(data = svar_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
     geom_col(position = position_stack(reverse = TRUE)) +
     scale_fill_manual(values = c("gray80", "gray40")) +
     labs(x = "horizon", y = "fraction of overall variance", title = "Forecast Error Variance Decomposition") +
