@@ -20,7 +20,7 @@ theme_set(theme_bw() +
 #### Data ####
 
 # import data on price of energy, exchange rate, interest rate, price of grain
-prices <- read_csv("enders_holt.csv")
+prices <- read_csv("data/enders_holt.csv")
 prices
 
 prices %>%

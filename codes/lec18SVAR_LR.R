@@ -22,15 +22,15 @@ gdp_raw <- tq_get("GDPC1", get = "economic.data", from = "1947-01-01", to = "201
 unrate_raw <- tq_get("UNRATE", get = "economic.data", from = "1947-01-01", to = "2018-12-31")
 
 if (is.null(nrow(gdp_raw))) {
-    read_csv(file = "gdp_raw.csv")  
+    read_csv(file = "data/gdp_raw.csv")  
 } else {
-    write_csv(gdp_raw, path = "gdp_raw.csv")
+    write_csv(gdp_raw, path = "data/gdp_raw.csv")
 }
  
 if (is.null(nrow(unrate_raw))) {
-    read_csv(file = "unrate_raw.csv")  
+    read_csv(file = "data/unrate_raw.csv")  
 } else {
-    write_csv(unrate_raw, path = "unrate_raw.csv")
+    write_csv(unrate_raw, path = "data/unrate_raw.csv")
 }   
     
 # obtain data on real GDP and unemployment rate

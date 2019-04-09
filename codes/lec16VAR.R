@@ -30,7 +30,7 @@ hpi_raw <-
     tq_get(c("ATNHPIUS31084Q","ATNHPIUS40140Q"), get = "economic.data",
            from  = "1940-01-01", to = "2017-12-31")
 
-write_csv(hpi_raw, path = "hpi_raw.csv")
+write_csv(hpi_raw, path = "data/hpi_raw.csv")
 
 hpi_tbl <-
     hpi_raw %>%
