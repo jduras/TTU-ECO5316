@@ -4,12 +4,12 @@ library(tidyquant)
 library(timetk)
 library(tibbletime)
 library(tsibble)
-library(broom)
-library(ggplot2)
-library(ggfortify)
 library(vars)           # package that allows to estimate and analyze VAR models
+library(broom)
 library(stargazer)
 library(listviewer)
+library(ggplot2)
+library(ggfortify)
 library(qqplotr)
 library(scales)
 library(plotly)
@@ -28,7 +28,7 @@ theme_set(theme_bw() +
 # obtain data on house price index for Los Angeles MSA and for Riverside MSA
 hpi_raw <- 
     tq_get(c("ATNHPIUS31084Q","ATNHPIUS40140Q"), get = "economic.data",
-           from  = "1940-01-01", to = "2017-12-31")
+           from  = "1940-01-01", to = "2018-12-31")
 
 write_csv(hpi_raw, path = "data/hpi_raw.csv")
 
@@ -49,8 +49,8 @@ hpi_tbl %>%
                                        variable == "dly" ~ "House Price Index, quarterly, log change")) %>%
     ggplot(aes(x = date, y = value, group = msa)) +
         geom_line(aes(col = msa, linetype = msa)) +
-        scale_color_manual(values = c("blue","red"), labels = c("Los Angeles MSA", "Riverside MSA")) +
-        scale_linetype_manual(values = c("solid","dashed"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        scale_color_manual(values = c("blue", "red"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        scale_linetype_manual(values = c("solid", "dashed"), labels = c("Los Angeles MSA", "Riverside MSA")) +
         labs(x = "", y = "", color = "", linetype = "") +
         facet_wrap(~variable_labels, ncol = 1, scales = "free_y") +
         theme(legend.position = c(0.1, 0.94),
@@ -374,7 +374,7 @@ g <- ggplot(data = varp_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
     # scale_fill_manual(values = wes_palette("GrandBudapest1")[c(4,3)]) +
     scale_fill_manual(values = c("gray70","gray40")) +
     labs(x = "horizon", y = "fraction of overall variance", title = "Forecast Error Variance Decomposition") +
-    facet_grid(variable ~ .)
+    facet_wrap(~variable, ncol = 1)
 g
 
 # plot FEVD using plotly
