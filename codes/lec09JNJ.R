@@ -18,10 +18,12 @@ library(sweep)
 theme_set(theme_bw() + 
     theme(strip.background = element_blank()))
 
-# import the data on earnings per share for Johnson and Johnson,
+# import the data on earnings per share for Johnson and Johnson
+# obtained from http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-jnj.txt
 # then construct log, change, log-change, seasonal log change
 jnj_tbl_all <-
-    read_table("http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-jnj.txt", col_names = "y") %>%
+    # read_table("http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-jnj.txt", col_names = "y") %>%
+    read_table("data/q-jnj.txt", col_names = "y") %>%
     ts(start = c(1960,1), frequency = 4) %>%
     tk_tbl(rename_index = "yearq") %>%
     mutate(yearq = yearquarter(yearq),

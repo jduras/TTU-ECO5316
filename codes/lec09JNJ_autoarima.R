@@ -18,15 +18,16 @@ library(sweep)
 
 # set default theme for ggplot2
 theme_set(theme_bw() + 
-              theme(strip.background = element_blank()))
+          theme(strip.background = element_blank()))
 
 # import the data on earnings per share for Johnson and Johnson,
 # then construct log, change, log-change, seasonal log change
 jnj_tbl_all <-
-    read_table("http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-jnj.txt", col_names = "y") %>%
+    # read_table("http://faculty.chicagobooth.edu/ruey.tsay/teaching/fts3/q-jnj.txt", col_names = "y") %>%
+    read_table("data/q-jnj.txt", col_names = "y") %>%
     ts(start = c(1960,1), frequency = 4) %>%
     tk_tbl(rename_index = "yearq") %>%
-    mutate(yearq = yearquarter(yearq),
+    mutate(yearq = as.yearqtr(yearq),
            ly = log(y),
            dy = y - lag(y),
            dly1 = ly - lag(ly),
@@ -37,12 +38,12 @@ jnj_tbl_all <-
 fstQ <- 1960.00  # 1960Q1
 lstQ <- 1978.75  # 1978Q4
 jnj_tbl_1 <- jnj_tbl_all %>%
-    filter(yearq <= yearquarter(lstQ))
+    filter(yearq <= as.yearqtr(lstQ))
 
 m2 <- jnj_tbl_1 %>%
     tk_ts(select = ly, start = fstQ, frequency = 4) %>%
     auto.arima(ic = "aicc", seasonal = TRUE, approximation = FALSE, stepwise = FALSE)
-ggtsdiag(m2, gof.lag = maxlag)
+ggtsdiag(m2, gof.lag = 24)
 
 # construct 1-quarter to 12-quarters ahead forecasts
 hmax <- 12
@@ -58,8 +59,8 @@ jnj_tbl_f_1_to_hmax <-
     m2_f_1_to_hmax %>%
     sw_sweep(rename_index = "yearq") %>%
     filter(key == "forecast") %>%
-    mutate(yearq = yearquarter(yearq)) %>%
-    mutate_at(vars(ly, lo.80, lo.95, hi.80, hi.95), funs(exp)) %>%
+    mutate(yearq = as.yearqtr(yearq)) %>%
+    mutate_at(vars(ly, lo.80, lo.95, hi.80, hi.95), exp) %>%
     rename(y = ly) %>%
     select(yearq, key, y, lo.80, lo.95, hi.80, hi.95)
 
@@ -69,18 +70,19 @@ jnj_tbl_f_1_to_hmax <-
                   mutate(key = "actual") %>%
                   select(yearq, key, y),
               jnj_tbl_f_1_to_hmax) %>%
-    mutate(yearq = yearquarter(yearq))
+    mutate(yearq = as.yearqtr(yearq))
 
 # plot 1-quarter to 12-quarters ahead forecasts - levels
 jnj_tbl_f_1_to_hmax %>%
-    filter(yearq >= yearquarter(1970)) %>%
+    filter(yearq >= as.yearqtr(1970)) %>%
     ggplot(aes(x = yearq, y = y, col = key, linetype = key)) +
         geom_ribbon(aes(ymin = lo.95, ymax = hi.95), linetype = "blank", fill = "blue", alpha = 0.1) +
         geom_ribbon(aes(ymin = lo.80, ymax = hi.80), linetype = "blank", fill = "blue", alpha = 0.2) +
         geom_line() +
         geom_point() +
-        scale_color_manual(values = c("gray40","darkblue")) +
-        scale_linetype_manual(values = c("solid","solid")) +
+        scale_x_yearqtr() +
+        scale_color_manual(values = c("gray40", "darkblue")) +
+        scale_linetype_manual(values = c("solid", "solid")) +
         labs(x = "", y = "",
              title = "Earnings per share for Johnson and Johnson: Multistep Forecast") +
         theme(legend.position = "none")
@@ -91,20 +93,24 @@ jnj_tbl_f_1_to_hmax %>%
 window.length <- nrow(jnj_tbl_1)
 
 # estimate rolling SARIMA model, create 1 step ahead forecasts
-results <-
+jnj_sarima_roll <-
     jnj_tbl_all %>%
-    as_tsibble(index = yearq) %>%                                        # covert to tsibble
-    mutate(sarima.model = slide(ly, ~auto.arima(.x, ic = "aicc", seasonal = TRUE, approximation = FALSE, stepwise = FALSE),
-                                .size = window.length)) %>%             # estimate models
-    filter(!is.na(sarima.model)) %>%                                    # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(sarima.coefs = map(sarima.model, tidy, conf.int = TRUE),
-           sarima.fcst = map(sarima.model, (. %>% forecast(1) %>% sw_sweep())))
+    as_tsibble(index = yearq) %>%                                                                                           # covert to tsibble
+    mutate(sarima_mod = slide2(yearq, ly, 
+                         ~tibble(yearq = .x, ly = .y) %>%                                                                   # rolling tibble with yearq and ly columsn
+                             tk_ts(select = ly, start = c(year(.$yearq[1]), quarter(.$yearq[1])), frequency = 4) %>%        # rolling ts
+                             auto.arima(ic = "aicc", seasonal = TRUE, approximation = FALSE, stepwise = FALSE),             # estimate models
+                         .size = window.length)) %>%
+    filter(!is.na(sarima_mod)) %>% 
+    mutate(sarima_coefs = map(sarima_mod, tidy, conf.int = TRUE),
+           sarima_f = map(sarima_mod, (. %>% forecast(1) %>% sw_sweep())))
+jnj_sarima_roll
 
 # extract coefficients
-coefs_tbl <- results %>%
-    select(yearq, sarima.coefs) %>%
+coefs_tbl <- jnj_sarima_roll %>%
+    select(yearq, sarima_coefs) %>%
     as_tibble() %>%
-    unnest(sarima.coefs) %>% 
+    unnest() %>% 
     as_tsibble(key = id("term"), index = yearq) 
 
 # plot estimated coefficients with confidence intervals
@@ -114,6 +120,7 @@ coefs_tbl %>%
         geom_point(color = "royalblue") +
         geom_ribbon(aes(x = yearq, ymin = conf.low, ymax = conf.high), alpha = 0.5, fill = "lightblue") +
         geom_hline(yintercept = 0, color = "black")+
+        scale_x_yearqtr() +
         labs(x = "", y = "",
              title = "Coefficient estimates",
              subtitle = paste(window.length, "month rolling window model"))+
@@ -141,6 +148,7 @@ coefs_tbl %>%
     geom_point(color = "royalblue") +
     geom_ribbon(aes(x = yearq, ymin = conf.low, ymax = conf.high), alpha = 0.5, fill = "lightblue") +
     geom_hline(yintercept = 0, color = "black") +
+    scale_x_yearqtr() +
     labs(x = "", y = "",
          title = "Coefficient estimates",
          subtitle = paste(window.length, "month rolling window model"))+
@@ -148,14 +156,14 @@ coefs_tbl %>%
 
 # extract the 1 period ahead rolling forecasts, convert to levels
 m2_f_1_rol <-
-    results %>%
-    select(yearq, sarima.fcst) %>%
+    jnj_sarima_roll %>%
+    select(yearq, sarima_f) %>%
     as_tibble() %>%
-    unnest(sarima.fcst) %>%
+    unnest(sarima_f) %>%
     filter(key == "forecast") %>%
-    mutate(yearq = yearq %m+% months(3) %>% yearquarter()) %>%
-    mutate_at(vars(value, lo.80, lo.95, hi.80, hi.95), funs(exp)) %>%
-    rename(y = value) %>%
+    mutate(yearq = yearq %>% as.Date() %m+% months(3) %>% as.yearqtr()) %>%
+    mutate_at(vars(ly, lo.80, lo.95, hi.80, hi.95), exp) %>%
+    rename(y = ly) %>%
     select(yearq, key, y, lo.80, lo.95, hi.80, hi.95)
 
 # forecast & actual data in a single tibble
@@ -164,16 +172,17 @@ jnj_tbl_f_1_rol <-
                   mutate(key = "actual") %>%
                   select(yearq, key, y),
               m2_f_1_rol) %>%
-    mutate(yearq = yearquarter(yearq))
+    mutate(yearq = as.yearqtr(yearq))
 
 # plot 1-quarter ahead rolling forecasts - levels
 jnj_tbl_f_1_rol %>%
-    filter(yearq >= yearquarter(1970)) %>%
+    filter(yearq >= as.yearqtr(1970)) %>%
     ggplot(aes(x = yearq, y = y, col = key)) +
         geom_ribbon(aes(ymin = lo.95, ymax = hi.95), linetype = "blank", fill = "blue", alpha = 0.1) +
         geom_ribbon(aes(ymin = lo.80, ymax = hi.80), linetype = "blank", fill = "blue", alpha = 0.2) +
         geom_line() +
         geom_point() +
+        scale_x_yearqtr() +
         scale_color_manual(values = c("gray40","darkblue")) +
         labs(x = "", y = "",
              title = "Earnings per share for Johnson and Johnson: 1-Step Ahead Rolling Forecast") +
@@ -182,13 +191,14 @@ jnj_tbl_f_1_rol %>%
 
 # plot 1-quarter ahead rolling forecasts - levels - alternative way with m2_f_1_rol but extra geom_line
 m2_f_1_rol %>%
-    filter(yearq >= yearquarter(1970)) %>%
+    filter(yearq >= as.yearqtr(1970)) %>%
     ggplot(aes(x = yearq, y = y, col = key)) +
         geom_ribbon(aes(ymin = lo.95, ymax = hi.95), linetype = "blank", fill = "blue", alpha = 0.1) +
         geom_ribbon(aes(ymin = lo.80, ymax = hi.80), linetype = "blank", fill = "blue", alpha = 0.2) +
         geom_line() +
-        geom_line(data = jnj_tbl_all %>% mutate(key = "actual") %>% filter(yearq > yearquarter(1970)), aes(x = yearq, y = y)) +
+        geom_line(data = jnj_tbl_all %>% mutate(key = "actual") %>% filter(yearq > as.yearqtr(1970)), aes(x = yearq, y = y)) +
         geom_point() +
+        scale_x_yearqtr() +
         scale_color_manual(values = c("gray40","darkblue")) +
         labs(x = "", y = "",
              title = "Earnings per share for Johnson and Johnson: 1-Step Ahead Rolling Forecast") +
@@ -197,7 +207,7 @@ m2_f_1_rol %>%
 
 # convert actual data in prediction sample into ts format
 jnj_ts_2 <- jnj_tbl_all %>%
-    filter(yearq > yearquarter(lstQ)) %>%
+    filter(yearq > as.yearqtr(lstQ)) %>%
     tk_ts(select = y, start = lstQ+0.25, frequency = 4)
 
 # evaluate accuracy of forecasts - multistep forecast - logs
