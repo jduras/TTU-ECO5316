@@ -12,6 +12,7 @@ library(vars)
 library(ggfortify)
 library(qqplotr)
 library(egg)
+library(plotly)
 
 # set default theme for ggplot2
 theme_set(theme_bw() +
@@ -64,24 +65,24 @@ denmark_tbl %>%
            measure_label = measure %>% factor(levels = c("level", "difference"), ordered = TRUE),
            combined_label = str_c(variable_label, as.numeric(measure_label), sep = ", ")) %>%
     ggplot(aes(x = yearq, y = value, color = component, size = component)) +
-    geom_line() +
-    scale_x_yearqtr() +
-    scale_color_manual(values = c("black", "gray60")) +
-    scale_size_manual(values = c(0.8, 0.3)) +
-    labs(x = "", y = "", title = "Data set for Denmark from Johansen & Juselius (1990)") +
-    facet_wrap(~combined_label, ncol = 4, scales = "free", strip.position = "top", dir = "v",
-               labeller = labeller(combined_label = as_labeller(c(`Bond rate (IBO), 1` = "Bond rate (IBO) \n\n",
-                                                                  `Bank deposit rate (IDE), 1` = "Bank deposit rate (IDE) \n\nlevels", 
-                                                                  `Log of real money M2 (LRM), 1` = "Log of real money M2 (LRM) \n\n", 
-                                                                  `Log of real income (LRY), 1` = "Log of real income (LRY) \n\n",
-                                                                  `Bond rate (IBO), 2` = "",
-                                                                  `Bank deposit rate (IDE), 2` = " \n\nfirst difference", 
-                                                                  `Log of real money M2 (LRM), 2` = "", 
-                                                                  `Log of real income (LRY), 2` = "")),
-                                   .multi_line = FALSE)) +
-    theme(legend.position = "none",
-          strip.text.y = element_text(angle = 180, hjust = 0),
-          strip.placement = "outside")
+        geom_line() +
+        scale_x_yearqtr() +
+        scale_color_manual(values = c("black", "gray60")) +
+        scale_size_manual(values = c(0.8, 0.3)) +
+        labs(x = "", y = "", title = "Data set for Denmark from Johansen & Juselius (1990)") +
+        facet_wrap(~combined_label, ncol = 4, scales = "free", strip.position = "top", dir = "v",
+                   labeller = labeller(combined_label = as_labeller(c(`Bond rate (IBO), 1` = "Bond rate (IBO) \n\n",
+                                                                      `Bank deposit rate (IDE), 1` = "Bank deposit rate (IDE) \n\nlevels", 
+                                                                      `Log of real money M2 (LRM), 1` = "Log of real money M2 (LRM) \n\n", 
+                                                                      `Log of real income (LRY), 1` = "Log of real income (LRY) \n\n",
+                                                                      `Bond rate (IBO), 2` = "",
+                                                                      `Bank deposit rate (IDE), 2` = " \n\nfirst difference", 
+                                                                      `Log of real money M2 (LRM), 2` = "", 
+                                                                      `Log of real income (LRY), 2` = "")),
+                                       .multi_line = FALSE)) +
+        theme(legend.position = "none",
+              strip.text.y = element_text(angle = 180, hjust = 0),
+              strip.placement = "outside")
     
 
 
@@ -149,45 +150,45 @@ map2(tk_tbl(denmark_zoo) %>%
 
 #### Cointegration test - Johansen's methodology ####
 
-denmark_CA <- ca.jo(denmark_ts, ecdet = "const", type = "trace", K = 4, spec = "transitory", season = 4)
-summary(denmark_CA)
-denmark_CA <- ca.jo(denmark_ts, ecdet = "const", type = "eigen", K = 4, spec = "transitory", season = 4)
-summary(denmark_CA)
+denmark_ca <- ca.jo(denmark_ts, ecdet = "const", type = "trace", K = 4, spec = "transitory", season = 4)
+summary(denmark_ca)
+denmark_ca <- ca.jo(denmark_ts, ecdet = "const", type = "eigen", K = 4, spec = "transitory", season = 4)
+summary(denmark_ca)
 
 
 
 #### Vector Error Correction Model ####
 
-denmark_VEC <- cajorls(denmark_CA, r = 1)
-denmark_VEC
+denmark_vec <- cajorls(denmark_ca, r = 1)
+denmark_vec
 # to see t-statistics and p-values
-summary(denmark_VEC$rlm)
+summary(denmark_vec$rlm)
 
 # plot residuals and their ACF and PACF
-plotres(denmark_CA)
+plotres(denmark_ca)
 
-# inspect the structure of denmark_VEC
-str(denmark_VEC)
-names(denmark_VEC)
-names(denmark_VEC$rlm)
+# inspect the structure of denmark_vec
+str(denmark_vec)
+names(denmark_vec)
+names(denmark_vec$rlm)
 
 # QQ plots for residuals
-g1 <- ggplot(data = as_tibble(denmark_VEC$rlm$residuals[,"LRM.d"]), mapping = aes(sample = value)) +
+g1 <- ggplot(data = as_tibble(denmark_vec$rlm$residuals[,"LRM.d"]), mapping = aes(sample = value)) +
     stat_qq_band(alpha = 0.3, conf = 0.95) +
     stat_qq_line() +
     stat_qq_point() +
     labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Equation for Log of Real Money")
-g2 <- ggplot(data = as_tibble(denmark_VEC$rlm$residuals[,"LRY.d"]), mapping = aes(sample = value)) +
+g2 <- ggplot(data = as_tibble(denmark_vec$rlm$residuals[,"LRY.d"]), mapping = aes(sample = value)) +
     stat_qq_band(alpha = 0.3, conf = 0.95) +
     stat_qq_line() +
     stat_qq_point() +
     labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Equation for Log of Real Income")
-g3 <- ggplot(data = as_tibble(denmark_VEC$rlm$residuals[,"IBO.d"]), mapping = aes(sample = value)) +
+g3 <- ggplot(data = as_tibble(denmark_vec$rlm$residuals[,"IBO.d"]), mapping = aes(sample = value)) +
     stat_qq_band(alpha = 0.3, conf = 0.95) +
     stat_qq_line() +
     stat_qq_point() +
     labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "Residuals in Equation for Bond Rate")
-g4 <- ggplot(data = as_tibble(denmark_VEC$rlm$residuals[,"IDE.d"]), mapping = aes(sample = value)) +
+g4 <- ggplot(data = as_tibble(denmark_vec$rlm$residuals[,"IDE.d"]), mapping = aes(sample = value)) +
     stat_qq_band(alpha = 0.3, conf = 0.95) +
     stat_qq_line() +
     stat_qq_point() +
@@ -196,7 +197,7 @@ ggarrange(g1, g2, g3, g4, ncol = 2)
 
 # same as above but using imap from purrr 
 g_lst <-
-    denmark_VEC %>%
+    denmark_vec %>%
     pluck("rlm", "residuals") %>%
     as_tibble() %>%
     rename(`Residuals in Equation for Log of Real Money (LRM.d)` = LRM.d,
@@ -217,7 +218,7 @@ ggarrange(plots = g_lst)
 #### Vector Error Correction Model: Testing Restrictions ####
 
 # test for restricted constant in cointegration relationship rather than  a drift
-lttest(denmark_CA, r = 1)
+lttest(denmark_ca, r = 1)
 
 # test for restricted cointegrating vector betta
 #  H0: betta2 = -betta1
@@ -227,7 +228,7 @@ rest_betta1 <- matrix(data = c(1,-1,0,0,0,
                                0,0,0,1,0,
                                0,0,0,0,1),
                       nrow = 5, ncol = 4)
-denmark_ca_rbetta1 <- blrtest(denmark_CA, H = rest_betta1, r = 1)
+denmark_ca_rbetta1 <- blrtest(denmark_ca, H = rest_betta1, r = 1)
 summary(denmark_ca_rbetta1)
 
 #  H0: betta2 = -betta1 and betta4 = -betta3
@@ -236,18 +237,18 @@ rest_betta2 <- matrix(data = c(1,-1,0,0,0,
                                0,0,1,-1,0,
                                0,0,0,0,1),
                       nrow = 5, ncol = 3)
-denmark_ca_rbetta2 <- blrtest(denmark_CA, H = rest_betta2, r = 1)
+denmark_ca_rbetta2 <- blrtest(denmark_ca, H = rest_betta2, r = 1)
 summary(denmark_ca_rbetta2)
 
 # test for restricted adjustment parameters alpha
 rest_alpha <- matrix(c(1,0,0,0), c(4,1))
-denmark_ca_ralpha <- alrtest(denmark_CA, A = rest_alpha, r = 1)
+denmark_ca_ralpha <- alrtest(denmark_ca, A = rest_alpha, r = 1)
 summary(denmark_ca_ralpha)
 
 # joint test for restricted adjustment parameters alpha and restricted cointegrating vector betta
-denmark_ca_rboth1 <- ablrtest(denmark_CA, A = rest_alpha, H = rest_betta1, r = 1)
+denmark_ca_rboth1 <- ablrtest(denmark_ca, A = rest_alpha, H = rest_betta1, r = 1)
 summary(denmark_ca_rboth1)
-denmark_ca_rboth2 <- ablrtest(denmark_CA, A = rest_alpha, H = rest_betta2, r = 1)
+denmark_ca_rboth2 <- ablrtest(denmark_ca, A = rest_alpha, H = rest_betta2, r = 1)
 summary(denmark_ca_rboth2)
 
 # restricted VEC model - note that cajorls ignores restrictions on alpha and only implements restrictions on betta
@@ -275,12 +276,12 @@ stargazer(lms$LRM.d, lms$LRY.d, lms$IBO.d, lms$IDE.d, type = "text")
 
 # to be able to construct forecasts, IRFs and FEVDs, we need to transform the estimated VEC model in differences into a VAR in levels
 # note that vec2var function does not support restricted VEC models
-denmark_var <- vec2var(denmark_CA, r = 1)
+denmark_var <- vec2var(denmark_ca, r = 1)
 
 # vec2varX supports restricted VEC models
 source("vec2varX.r")
-denmark_var <- vec2varX(denmark_CA, r = 1)
-denmark_var_rboth1 <- vec2varX(denmark_CA, A = rest_alpha, H = rest_betta2, r = 1)
+denmark_var <- vec2varX(denmark_ca, r = 1)
+denmark_var_rboth1 <- vec2varX(denmark_ca, A = rest_alpha, H = rest_betta2, r = 1)
 
 # multivariate Jarque-Bera test for normality of the residuals of the VAR models
 normality.test(denmark_var)
@@ -339,7 +340,7 @@ g <- ggplot(data = denmark_var_irf.tbl, aes(x = lag, y = irf)) +
 g
 
 # plot IRFs using plotly
-plotly::ggplotly(g)
+ggplotly(g)
 
 
 
