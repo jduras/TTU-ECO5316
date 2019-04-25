@@ -12,14 +12,14 @@ theme_set(theme_bw() +
                 strip.text.x = element_text(hjust = 0)))
 
 # import data on price indices and exchange rates
-ppp_raw_tbl <- read_xlsx("coint_ppp.xlsx")
+ppp_raw_tbl <- read_csv("data/coint_ppp.csv")
 ppp_raw_tbl
 
 glimpse(ppp_raw_tbl)
 
 ppp_tbl <-
     ppp_raw_tbl %>%
-    mutate(yearm = as.yearmon(ENTRY, format = "%Y:%q")) %>%
+    mutate(yearm = as.yearmon(ENTRY, format = "%Y:%m:00")) %>%
     dplyr::select(yearm, everything(), -ENTRY) %>%
     rename(cpi_usa = USCPI,
            cpi_can = CANCPI,
