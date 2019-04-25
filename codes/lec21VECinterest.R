@@ -7,10 +7,12 @@ library(tidyquant)
 library(broom)
 library(timetk)
 library(tibbletime)
+library(tsibble)
 library(lubridate)
 library(urca)
 library(vars)
 library(ggfortify)
+library(plotly)
 
 # set default theme for ggplot2
 theme_set(theme_bw() +
@@ -149,7 +151,7 @@ rolling_ca.jo <-
         },
         window = window_length, unlist = FALSE)
 
-# rolling estimation
+# rolling estimation - using tibbletime
 vec_roll_results <-
     r_tbl %>%
     mutate(date = as.Date(yearq)) %>%
@@ -163,6 +165,26 @@ vec_roll_results <-
            var_f = map(var, . %>% predict(n.ahead = 1) %>% pluck("fcst") %>% map(as_tibble) %>% bind_rows(.id = "variable"))      # one step ahead forecast
     )
 vec_roll_results
+
+# rolling estimation - using tsibble
+vec_roll_results <-
+    r_tbl %>%
+    mutate(date = as.Date(yearq)) %>%
+    as_tsibble(index = yearq) %>%
+    mutate(ca = slide2(r5, tbill,
+                       ~cbind(r5 = .x, tbill = .y) %>% 
+                           ca.jo(type = "eigen", ecdet = "const", K = 2, spec = "transitory"),
+                       .size = window_length)) %>%
+    filter(!is.na(ca)) %>%
+    mutate(vec = map(ca, . %>% cajorls(r = 1)),                                                                       # unrestricted VEC
+           ca_rest = map(ca, . %>% blrtest(H = matrix(data = c(1,-1,0,0,0,1) , nrow = 3, ncol = 2), r = 1)),          # test restriction on betta
+           vec_rest = map(ca_rest, cajorls),                                                                          # VEC with alpha2 = 0
+           var = map(ca, . %>% vec2var(r = 1)),                                                                       # convert VEC to VAR in levels
+           var_f = map(var, . %>% predict(n.ahead = 1) %>% pluck("fcst") %>% map(as_tibble) %>% bind_rows(.id = "variable"))      # one step ahead forecast
+    ) %>%
+    as_tibble()
+vec_roll_results
+
 
 # plot statistic for cointegration test
 vec_roll_results %>%
@@ -226,7 +248,7 @@ g <- vec_roll_results %>%
         theme(strip.placement = "outside")
 g
 
-plotly::ggplotly(g)
+ggplotly(g)
 
 # 1 period ahead rolling forecasts
 vec_roll_f <-
@@ -262,4 +284,4 @@ g <- vec_roll_f %>%
         theme(legend.position = "none")
 g
 
-plotly::ggplotly(g)
+ggplotly(g)

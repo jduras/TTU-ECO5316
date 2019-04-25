@@ -211,12 +211,12 @@ var_roll_results <-
     spread(msa, dly) %>%
     filter(date >= "1976-07-01") %>%
     as_tbl_time(index = date) %>%                                                           # covert to tibbletime
-    mutate(VAR.model = rolling_var(LA,RI)) %>%                                                 # estimate models
-    filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(var_coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
+    mutate(var_mod = rolling_var(LA,RI)) %>%                                                 # estimate models
+    filter(!is.na(var_mod)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
+    mutate(var_coefs = map(var_mod, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
                                            map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
-           var_f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
+           var_f = map(var_mod, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
                                        map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
@@ -230,14 +230,14 @@ var_roll_results <-
     filter(date >= "1976-07-01") %>%
     mutate(yearq = yearquarter(date)) %>%
     as_tsibble(index = yearq) %>%
-    mutate(VAR.model = slide2(LA, RI, ~ bind_cols(LA = .x, RI = .y) %>% 
+    mutate(var_mod = slide2(LA, RI, ~ bind_cols(LA = .x, RI = .y) %>% 
                                   VAR(ic = "SC", lag.max = 8, type = "const"), 
                               .size = window_length)) %>%                                   # estimate models
-    filter(!is.na(VAR.model)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
-    mutate(var_coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
+    filter(!is.na(var_mod)) %>%                                                           # remove periods at the beginning of sample where model could not be estimated due to lack of data,
+    mutate(var_coefs = map(var_mod, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      # extract coefficients
                                            map(as_tibble) %>%
                                            bind_rows(.id = "msa"))),
-           var_f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
+           var_f = map(var_mod, (. %>% predict(n.ahead = 1) %$%                           # extract forecast
                                        fcst %>%
                                        map(as_tibble) %>%
                                        bind_rows(.id = "msa"))))
