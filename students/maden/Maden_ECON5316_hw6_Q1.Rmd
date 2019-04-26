@@ -1,0 +1,90 @@
+---
+title: "Maden_ECON5316_hw6_Q1"
+author: "Bitaran Jang maden"
+date: "April 10, 2019"
+output: html_document
+---
+
+```{r}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(vars)
+```
+
+a)
+
+```{r}
+gdp.tbl <-
+    tq_get(c("GDPC1","GDPDEF"), get = "economic.data",
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    spread(symbol, price) %>%
+    mutate(qtryear = as.yearqtr(date))
+
+
+spindex.tbl <-
+    tq_get("^GSPC", get="stock.prices",
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    mutate(qtryear = as.yearqtr(date)) %>%
+    group_by(qtryear) %>%
+    summarise(SP500 = mean(adjusted)) %>%
+    ungroup()
+    
+
+```
+
+(b) Construct the following two time series
+
+```{r}
+
+y.tbl <- full_join(gdp.tbl, spindex.tbl, by = "qtryear") %>%
+  #time series 1      
+  mutate(dlrGDP = 400*(log(GDPC1) - lag(log(GDPC1)))) %>%
+  #time series 2
+  mutate(dlrSP500 = 100*((log(SP500) - lag(log(SP500))) - ( log(GDPDEF) - lag(log(GDPDEF)))))%>%
+  dplyr::select(qtryear, dlrGDP, dlrSP500) %>%
+  na.trim()
+
+y.ts <- tk_ts(y.tbl, select = c("dlrGDP","dlrSP500"), start = 1950, frequency = 4)
+
+```
+c. estimate reduced form VAR
+```{r}
+
+VARselect(y.ts, lag.max = 8)
+
+
+# estimate reduced form VAR(p) using AIC for selecting p
+var <- VAR(y.ts, ic = "AIC", lag.max = 8, type = "const")
+var
+summary(var)
+
+```
+d Granger causality test
+```{r}
+causality(var, cause = "dlrGDP")
+causality(var, cause = "dlrSP500")
+```
+e. Restricted Var  using Granger causality test
+```{r}
+ myVAR<- restrict(var, method="ser", thresh=2.0)
+```
+
+f. VAR model to create a multistep forecast
+```{r}
+var.f <- predict(var, n.ahead = 4, ci=0.9)
+plot(var.f)
+fanchart(var.f)
+autoplot(var.f, is.date = TRUE) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(x = "", y = "", title = "Multistep forecast for 2018Q1-2018Q4")
+
+
+
+```
+
