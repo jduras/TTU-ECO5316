@@ -1,0 +1,100 @@
+---
+title: "koirala_eco5316_hw6_qn1"
+author: "Bikal Koirala"
+date: "April 10, 2019"
+output: html_document
+---
+
+```{r}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(vars)
+
+```
+
+a.
+
+```{r}
+gdp.tbl <-
+    tq_get(c("GDPC1","GDPDEF"), get = "economic.data",
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    spread(symbol, price) %>%
+    mutate(qtryear = as.yearqtr(date))
+
+spindex.tbl <-
+    tq_get("^GSPC", get = "stock.prices" ,
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    mutate(qtryear = as.yearqtr(date)) %>%
+    group_by(qtryear) %>%
+    summarise(SP500 = mean(adjusted)) %>%
+    ungroup()
+```
+
+
+
+b. Construct the following two time series
+```{r}
+
+y.tbl <- full_join(gdp.tbl, spindex.tbl, by = "qtryear") %>%
+        #time series one
+  mutate(dlrGDP = 400*(log(GDPC1) - lag(log(GDPC1))))%>%
+         #time series two
+              mutate (dlrSP500 = 100*( (  log(SP500) - lag(log(SP500)) )    -    ( log(GDPDEF) - lag(log(GDPDEF))  )   ) )%>%
+        dplyr::select(qtryear, dlrGDP, dlrSP500) %>%
+        na.trim()
+
+z.ts <- tk_ts(y.tbl, select = c("dlrGDP","dlrSP500"), start = 1950, frequency = 4)
+```
+
+c. 
+```{r}
+VARselect(z.ts, lag.max = 8, type = "const")
+
+
+# estimate a reduced form VAR(p)
+varp <- VAR(z.ts, ic = "AIC", lag.max = 8, type = "const")
+varp
+summary(varp)
+```
+
+
+d. Granger casuality test
+
+```{r}
+causality(varp, cause = "dlrGDP")
+causality(varp, cause = "dlrSP500")
+
+
+```
+
+
+
+e. estimating a restricted VAR model
+
+```{r}
+
+myVAR <- restrict (varp, method = "ser", thresh = 2.0)
+```
+
+f. using the VAR model to create a multistep forecast 2019Q1-2019Q4
+
+
+```{r}
+var.f<- predict(varp, n.head = 4, ci = 0.9)
+plot (var.f)
+fanchart(var.f)
+autoplot(var.f, is.date = TRUE)
+geom_hline(yintercept = 0, linetype = "dashed")
+labs (x =  "" , y = "" , title = "Multistep forecast for 2018Q1-2018Q4")
+
+
+
+
+```
+
