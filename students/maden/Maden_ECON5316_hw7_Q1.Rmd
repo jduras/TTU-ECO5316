@@ -1,0 +1,118 @@
+---
+title: "Untitled"
+author: "Bitaran Jang maden"
+date: "April 24, 2019"
+output: html_document
+---
+
+```{r warning=FALSE, message=FALSE}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(Quandl)
+library(urca)
+library(vars)
+library(devtools)
+```
+a)
+```{r cars}
+OPHNFB <- tq_get(("OPHNFB"), get = "economic.data",
+           from  = "1947-01-01", to = "2017-12-31")
+
+HOANBS <- tq_get(("HOANBS"), get = "economic.data",
+           from  = "1947-01-01", to = "2017-12-31")
+
+ophnfb_tbl <-
+    OPHNFB %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+hoanbs_tbl<-
+  HOANBS %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+# convert data into ts
+ophnfb_ts <-
+    ophnfb_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+
+
+hoanbs_ts <-
+    hoanbs_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+```
+
+b)
+
+```{r}
+
+
+log.y1 <- log(ophnfb_ts)
+log.y2 <- log(hoanbs_ts)
+
+first.diff.y1 <- diff( log(ophnfb_ts), differences = 1)
+first.diff.y2 <- diff(log(hoanbs_ts), differences = 1)
+
+#Unit Root Test
+log.y1 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+first.diff.y1 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+log.y2 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+first.diff.y2  %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+```
+The first two tests examine the ERS test statistics of the log transformed data and first difference of ophnfb dataset. The third and fourth tests examine the ERS test statistics of the log transformed data and first difference of hoanbs dataset. On log transformed data tests we fail to reject the null hypothesis which implies that the log-transformed data contains a unit roots. Therefore, it is not approximately weakly stationary. The ERS tests in the first difference log transformed data reject the null hypothesis at the 1% level, that shows the first difference of both of our data sets are approximately weakly stationary. Due to the results of the ERS tests, for the remainder of this assignment we will be using the first differnces of our data sets.
+
+
+c)
+```{r}
+y <- cbind(first.diff.y1,first.diff.y2)
+var <- VAR(y, ic = "AIC", lag.max = 8, type = "const")
+var
+summary(var)
+
+
+```
+
+
+d)
+```{r}
+
+svar <- BQ(var)
+svar
+summary(svar)
+```
+e)
+```{r}
+myIRF.c <- irf(svar, n.ahead = 12, ci = .9, cumulative = TRUE)
+summary(svar)
+
+```
+
+f)
+
+
+```{r, fig.width=10, fig.height=8}
+par(mfrow = c(2,2))
+plot(myIRF.c, plot.type = "single")
+```
+g)
+
+```{r}
+#comparing with gali, the figure 2 representing poductivity and hours is similar to the response functions found in this analysis.
+```
+h)
+```{r, fig.width=10, fig.height=8}
+plot( fevd(svar, n.ahead=40) ,addbars=10 )
+```
+
