@@ -1,0 +1,147 @@
+---
+title: '**Homework 6**'
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+subtitle: |
+  | Eco 5316 Time Series Econometrics
+  | Spring 2019
+  | Due: Sunday, April 21, 11.55pm
+linkcolor: magenta
+urlcolor: magenta
+---
+
+```{r}
+library(tidyquant)
+library(magrittr)
+library(readr)
+library(timetk)
+library(tidyverse)
+library(plotly)
+library(vars)
+library(ggfortify)
+library(stargazer)
+
+theme_set(theme_bw() + 
+              theme(strip.text.x = element_text(hjust = 0),
+                    strip.text.y = element_text(hjust = 1),
+                    strip.background = element_blank()))
+```
+
+## **Problem 1**
+
+(a) Use `tq_get` with `get = "economic.data"` option to obtain the following time series for the period 1950Q1-2017Q4 from FRED: U.S. real GDP [`GDPC1`](https://fred.stlouisfed.org/series/GDPC1), and GDP deflator [`GDPDEF`](https://fred.stlouisfed.org/series/GDPDEF). 
+Then, use `tq_get` with `get = "stock.prices"` to obtain the data for the adjusted closing value of S&P 500 Index [`^GSPC`](https://finance.yahoo.com/chart/%5EGSPC) for the period 1950-01-01 to 2017-12-31 from Yahoo Finance. Construct the quarterly average values of the closing price of S&P 500 Index.
+
+(b) Use the data from (a) to construct the following two time series: 
+$$
+    dlrGDP_t = 400 \Delta\log GDP_t
+$$ 
+which approximates the annualized growth rate of the U.S. real GDP and 
+$$
+    dlrSP500_t = 100 (\Delta \log SP500_t - \Delta \log GDPDEF_t)
+$$ 
+which approximates the inflation adjusted annual return of S&P 500. 
+
+```{r}
+
+gdp_raw<- tq_get("GDPC1", get = "economic.data", from = "1950-01-01", to = "2017-12-31") %>% 
+           rename(rGDP = price) %>%
+          mutate(dlrGDP = 400*(log(rGDP) - lag(log(rGDP))))
+
+gdpdef_raw <- tq_get("GDPDEF", get = "economic.data", from = "1950-01-01", to = "2017-12-31") %>% 
+              rename(defGDP = price) %>%
+              mutate(dldefGDP=log(defGDP) - lag(log(defGDP)))
+
+index_raw <- tq_get("^GSPC", from = "1950-01-01", to = "2017-12-31") %>%
+              dplyr::select(date, adjusted) %>%
+              mutate(qtryear = as.yearqtr(date)) %>%
+              group_by(qtryear) %>%
+              summarise(SP500 = mean(adjusted)) %>%
+              ungroup() %>% 
+              rename(index = SP500) %>%
+              mutate(dlindex=log(index) - lag(log(index))) %>% 
+              mutate(date = as.Date(qtryear))
+y_raw <- inner_join(gdpdef_raw, index_raw,by = "date") %>% 
+         mutate(dlrsp500= 100*(dlindex-dldefGDP))
+y_tbl <- inner_join(y_raw,gdp_raw,by = "date")
+y_tbl     
+```
+
+(c) Estimate a bivariate reduced form VAR for $\mathbf y_t = (dlrSP500_t, dlrGDP_t)'$ for the period 1990Q1-2018Q4, use information criteria to select number of lags. How large is the correlation of residuals in the model, and what are the implications for IRFs and FEVDs based on Choleski decomposition?
+```{r}
+# convert the data into ts
+y.ts <-
+   y_tbl %>%
+    dplyr::select(date, dlrsp500,dlrGDP) %>%
+    filter(date >= "1990-01-01" & date <= "2018-10-01") %>% 
+    tk_ts(select = c("dlrsp500","dlrGDP"), start = 1990, frequency = 4)
+# load package that allows to estimate and analyze VAR models
+library(vars)
+VARselect(y.ts, lag.max = 8, type = "const")    
+
+# estimate VAR(p) using AIC to select p
+varp <- VAR(y.ts, ic = "AIC", lag.max = 8, type = "const")  
+varp                      
+summary(varp)
+
+# IRFs - based on Choleski decomposition of variance-covariance matrix var(e)
+varp.irfs <- irf(varp, n.ahead = 40)
+# plot IRFs using plot from vars package
+par(mfcol=c(2,2), cex = 0.6)
+plot(varp.irfs, plot.type = "single")
+
+# FEVD - based on Choleski decomposition of variance-covariance matrix var(e)
+varp.fevd <- fevd(varp, n.ahead = 40)
+varp.fevd[[1]][c(1,4,8,40),]
+varp.fevd[[2]][c(1,4,8,40),]
+plot(varp.fevd)
+plot(varp.fevd, addbars=8)
+```
+Comments: if Use AIC, we can select the number of lags as 2, which is consistent with the VARselect result. The correlation of residuals in the model is 0.4535. For IRFs, from "Orthogonal Impulse Response from dlrGDP" on dlrsp500, it shows the shock from the dlrGDP doesn't significantly affect dlrGDP.  For the opposite direction, "Orthogonal Impulse Response from dlrsp500" on dlrGDP, since the 95% confidence interval is far away from 0, so there is a positive significant effect of a shock for dlrsp500 on dlrGDP. What's more, this positive effect last until somewhere around 4 or 5 quarters, namely for about 1 year, so it doesn't last for quite a long time. For FEVD, the result shows that the shock in dlrGDP will not influence dlrsp500, the shock in dlrsp500 will influence dlrGDP for 40%. 
+
+
+(d) Run the Granger causality tests for both variables. What do the results suggest about the predictive power of the two variables? Discuss the economic intution behind your results of Granger causality test. 
+```{r}
+causality(varp, cause = "dlrGDP") 
+causality(varp, cause = "dlrsp500")  
+```
+Comments:  (1)the hull hypothesis is dlrGDP is not the granger causing of dlrsp500, i.e. the lags of dlrGDP is not statistically significant in dlrsp500 equation, p-value = 0.5416 shows that we fail to reject the null hypothesis, so they should be jointly 0. we can check from the result of summary(varp), dlrsp500 = dlrsp500.l1 + dlrGDP.l1 + dlrsp500.l2 + dlrGDP.l2 + const, dlrGDP.l1 and dlrGDP.l2 don't affect affect dlrsp500 significantly. 
+          (2) the null hypothesis is dlrsp500 is not the granger causing of dlrGDP, i.e. the lags of dlrsp500  is not statistically significant in dlrGD equation, p-value = 0.01364 shows that we have to reject the null hypothesis, so they cannot jointly be 0. we can check from the result of summary(varp), dlrGDP = dlrsp500.l1 + dlrGDP.l1 + dlrsp500.l2 + dlrGDP.l2 + const, dlrsp500.l1 affect affect dlrsp500 significantly. 
+
+
+(e) Estimate a restricted VAR model in which you remove lags based on Granger causality test from (d).
+```{r}
+# define a  matrix with restictions, and then use resitrict order manually
+mat.r <- matrix(1, nrow = 2, ncol = 5)
+mat.r[1, c(2,4)] <- 0   
+varp.r <- restrict(varp, method = "manual", resmat = mat.r)
+varp.r
+summary(varp.r)
+varp.r$restrictions
+Acoef(varp.r)
+
+# estimate restricted VAR - keep only variables with t-value larger than 2.0
+varp.r.ser <- restrict(varp, method = "ser", thresh = 2.0)     
+varp.r.ser
+summary(varp.r.ser)   
+varp.r.ser$restrictions
+Acoef(varp.r.ser)  
+
+```
+Comments:The restricted VAR model after removing the lags based on (d), the equation of dlrsp500 is dlrsp500 = dlrsp500.l1 , the equation of dlrGDP is dlrGDP = dlrsp500.l1 + dlrGDP.l2 + const. 
+
+
+(f) Use the VAR model to create a multistep forecast for 2019Q1-2019Q4. Compare your forecast for real GDP growth rate in 2019Q1 with (1) the [Federal Bank of New York Nowcast](https://www.newyorkfed.org/research/policy/nowcast), (2) the [GDPNow Federal Bank of Atlanta forecast](https://www.frbatlanta.org/cqer/research/gdpnow.aspx?panel=1), and (3) the minimum, the average, and the maximum forecasts in the [Wall Street Journal Economic Forecasting Survey](http://projects.wsj.com/econforecast/?standalone=1#ind=gdp&r=20).
+```{r}
+varp.f <- predict(varp, n.ahead = 8) 
+plot(varp.f)
+fanchart(varp.f)    
+g <- autoplot(varp.f, is.date = TRUE) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(x = "", y = "", title = "Multistep forecast")
+ggplotly(g)  
+
+```
+Comments:  From the result, we can get our forecast for real GDP growth rate in 2019 Q1 is 2.449631, the average GDP estimate of 2019Q1 in "Federal Bank of New York Nowcast" is about 1.67.  the average GDP estimate of 2019Q1 in "GDPNow Federal Bank of Atlanta forecast" is about 0.3-0.5, and the figure in Wall Street Journal Economic Forecasting Survey is 1.5, all of them are much lower than what we forecast here. The reason is due to the multistep ahead forecast, the error terms are highly correlated, which affect the precision. 
