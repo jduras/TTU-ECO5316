@@ -1,0 +1,125 @@
+---
+title: "HW-6"
+author: "Narendra"
+date: "April 29, 2019"
+output: html_document
+---
+
+```{r}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(vars)
+library(stargazer)
+
+```
+
+```{r}
+#a
+y.data <-
+    tq_get(c("GDPC1","GDPDEF"), get = "economic.data",
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    spread(symbol, price) %>%
+    mutate(qtryear = as.yearqtr(date))
+
+s.data <-
+    tq_get("^GSPC", get = "stock.prices" ,
+           from  = "1950-01-01", to = "2017-12-31") %>%
+    mutate(qtryear = as.yearqtr(date)) %>%
+    group_by(qtryear) %>%
+    summarise(SP500 = mean(adjusted)) %>%
+    ungroup()
+#b
+GDP.data <- full_join(y.data, s.data, by = "qtryear") %>%
+  mutate(dlrGDP = 400*(log(GDPC1) - lag(log(GDPC1))))%>%
+  mutate (dlrSP500 = 100*((log(SP500) -lag(log(SP500)) )- (log(GDPDEF) - lag(log(GDPDEF)))))%>%
+  dplyr::select(qtryear, dlrGDP, dlrSP500) %>%
+  na.trim()
+
+GDP.ts <- tk_ts(GDP.data, select = c("dlrGDP","dlrSP500"), start = 1950, frequency = 4)
+#c
+VARselect(GDP.ts, lag.max = 8, type = "const")
+
+var1 <- VAR(GDP.ts, p = 2, type = "const")
+var1
+summary(var1)
+
+# estimate VAR(p) using AIC to select p
+varp <- VAR(GDP.ts, ic = "AIC", lag.max = 8, type = "const")
+varp
+summary(varp)
+
+
+#
+mat.r <- matrix(1, nrow = 2, ncol = 5)
+mat.r[1, c(1,3)] <- 0
+mat.r
+varp.r <- restrict(varp, method = "manual", resmat = mat.r)
+varp.r
+summary(varp.r)
+varp.r$restrictions
+Acoef(varp.r)
+
+#d
+
+causality(varp, cause = "dlrGDP")
+causality(varp, cause = "dlrSP500")
+```
+# The null hypothes of Graner Casuality is: X does not granger cause Y or the other way around.
+#we accept the null hypothesis. That is: dlrSP500  does NOT Granger casue dlrGDP because of higher p-value 
+#(0.01>0.05 because we reject the null hypothesis when p<=0.05 from the result table p-value=0.01)
+#We conclude that there is no instantaneous causality between growth rate of the U.S real GDP and the inflation
+#adjusted annual return of S&P 500.
+```{r}
+causality(varp, cause = "dlrSP500")
+causality(varp.r, cause = "dlrGDP")
+```
+##We reject the null hypothesis that dlrSP500 does not granger cause dlrGDP,
+#thus dlrSP500 granger causes dlrGDP. We conclude that there is instataneous causality between inflation adjusted
+#annual returen of S&P 500 and growth rate of the U.S real GDP. Economic intution means that dlrGDP cannot 
+#predict dlrSP500 but dlrSP500 can predict dlrGDP1.
+```{r}
+#e
+varp.r.ser <- restrict(varp, method = "ser", thresh = 2.0)
+varp.r.ser
+summary(varp.r.ser)
+varp.r.ser$restrictions
+Acoef(varp.r.ser)
+
+# using stargazer package to report results of VAR estimation
+lm1 <- var1$varresult
+lmp <- varp$varresult
+
+stargazer(lm1,lmp,
+          type  ="text", column.labels = rep(colnames(GDP.ts), 2),
+          dep.var.labels.include = FALSE)
+#f
+varp.f <- predict(varp, n.ahead = 4, ci = 0.9 )
+plot(varp.f)
+fanchart(varp.f)
+autoplot(varp.f, is.date = TRUE) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y = "", title = "Multistep forecast for House Price Index, quarterly, log change")
+#######
+var1.irfs <- irf(var1, n.ahead = 10)
+varp.irfs <- irf(varp, n.ahead = 10)
+# plot IRFs using plot from vars package
+par(mfcol=c(2,2), cex = 0.8)
+plot(varp.irfs, plot.type = "single", lwd = 2)
+# FEVD - based on Choleski decomposition of variance-covariance matrix var(e)
+varp.fevd <- fevd(varp, n.ahead = 40)
+varp.fevd[[1]][c(1,4,8,15),]
+varp.fevd[[2]][c(1,4,8,15),]
+plot(varp.fevd)
+plot(varp.fevd, addbars=8)
+
+```
+
+
+
+
