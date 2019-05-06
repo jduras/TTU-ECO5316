@@ -1,0 +1,149 @@
+---
+title: "HW6"
+author: "Mohammed Alsubaie"
+date: "4/28/2019"
+output: html_document
+---
+```{r}
+library(imager)
+library(timetk)
+library(dplyr)
+library(tidyquant)
+library(KFAS)
+library(vars)
+library(urca)
+library(gdata)
+library(stargazer)
+library(forecast)
+library(dplyr)
+library(magrittr) 
+library(tibbletime) 
+library(broom) 
+library(ggplot2) 
+library(ggfortify) 
+library(readr) 
+
+```
+A)
+```{r}
+  
+GDPC1.data<-tq_get("GDPC1", get= "economic.data", from = "1950-01-01",
+                   to = "2017-12-31")
+
+GDPDEF.data<-tq_get("GDPDEF", get= "economic.data", from = "1950-01-01",
+                    to = "2017-12-31")
+
+
+
+SP500.data<- tq_get("^GSPC",get= "stock.price" ,
+                    from = "1950-01-01", to = "2017-12-31") %>%
+  dplyr::select(date, adjusted) %>%
+  mutate(qtryear = as.yearqtr(date)) %>%
+  group_by(qtryear) %>%
+  summarise(SP500 = mean(adjusted)) %>%
+  ungroup()
+```
+
+B) 
+
+```{r}
+
+logGDPC1 = log(GDPC1.data$price)
+difflogGDP = logGDPC1 - lag(logGDPC1)
+difflogGDP = 400*(difflogGDP)
+
+
+logGDPDEF = log(GDPDEF.data$price)
+difflogGDPDEF = logGDPDEF - lag(logGDPDEF)
+difflGDP <- ts(difflogGDP)
+plot(difflGDP, col="blue")
+
+
+logSP500 <- log(SP500.data$SP500)
+difflogSP500 <- ts(logSP500 - lag(logSP500))
+plot(difflogSP500, col="red")
+
+difflGDPDEF <- ts(difflogGDPDEF)
+plot(difflGDPDEF, col="green")
+
+dlogSP500 <- 100*(difflogSP500)- difflGDPDEF
+plot(dlogSP500)
+
+```
+
+C)
+
+```{r}
+
+dGDP <- ts(difflogGDP[GDPC1.data$date > "1990-01-01"],
+           start=c(1990,1), frequency = 4)
+plot(dGDP,col="blue" )
+
+
+dGDPDEF <- ts(difflogGDPDEF[GDPDEF.data$date > "1990-01-01"],
+              start=c(1990,1), frequency = 4)
+plot(dGDPDEF,col="green")
+
+dSP5001 <- ts((logSP500 - lag(logSP500))[SP500.data$qtryear > "1990 Q1"],
+              start=c(1990,1), frequency = 4)
+plot(dSP5001,col="red")
+
+dlrSP500 <- 100*(dSP5001)- dGDPDEF
+plot(dlrSP500)
+y <- cbind(dlrSP500, dGDP)
+VARselect(y, lag.max = 12, type = "const")
+
+Mvar <- VAR(y, p = 2, type = "const")
+Mvar
+
+summary(Mvar)
+```
+
+#plot(Mvar, nc = 4, lag.acf = 16, lag.pacf = 16)
+
+```{r}
+Mvar2 <- VAR(y, ic = "AIC", lag.max = 8, type = "const")
+Mvar2
+
+summary(Mvar2)
+```
+
+#plot(Mvar2, nc = 4, lag.acf = 16, lag.pacf = 16)
+
+D) 
+```{r}
+
+causality(Mvar, cause = "dlrSP500")
+causality(Mvar, cause = "dGDP")
+causality(Mvar2, cause = "dlrSP500")
+causality(Mvar2, cause = "dGDP")
+```
+
+E)
+```{r}
+
+RestM <- matrix(1, nrow = 2, ncol = 5)
+RestM[1, c(2,4,5)] <- 0
+
+RestMvar <- restrict(Mvar2, method = "manual", resmat = RestM)
+RestMvar
+
+summary(RestMvar)
+```
+
+F)
+```{r}
+
+Mvar3 <- predict(Mvar2, n.ahead = 4, ci = 0.9)
+Mvar3
+
+summary(Mvar3)
+fanchart(Mvar3, lwd = 2)
+
+
+irfs <- irf(Mvar2, n.ahead = 40)
+par(mfcol = c(2,2), cex = 0.8, mar = c(3,4,2,2))
+plot(irfs, plot.type = "single", lwd = 2)
+
+
+```

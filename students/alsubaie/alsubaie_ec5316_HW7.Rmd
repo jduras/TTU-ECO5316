@@ -1,0 +1,95 @@
+---
+title: "HW7"
+author: "Mohammed Alsubaie"
+date: "4/28/2019"
+output: html_document
+---
+
+```{r}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(Quandl)
+library(urca)
+library(vars)
+library(devtools)
+````
+
+A)
+
+```{r}
+
+output <- tq_get(("OPHNFB"), get = "economic.data",
+                 from  = "1947-01-01", to = "2017-12-31")
+
+hours <- tq_get(("HOANBS"), get = "economic.data",
+                from  = "1947-01-01", to = "2017-12-31")
+```
+
+B)
+```{r}
+
+Quandl.api_key("k1RWPy3mMbspsEB3K4kn")
+data.real.output <- Quandl("FRED/OPHNFB", type = 'zoo')
+data.hours <- Quandl("FRED/HOANBS", type = 'zoo')
+
+y1 <- data.real.output 
+y2 <- data.hours
+
+log.y1 <- 100*log(y1)
+log.y2 <- 100*log(y2)
+
+first.diff.y1 <- diff(y1, differences = 1)
+first.diff.y2 <- diff(y2, differences = 1)
+
+ERS.1 <- summary(ur.ers(log.y1, type = "DF-GLS", model = "trend"))
+ERS.2 <- summary(ur.ers(log.y2, type = "DF-GLS", model = "trend"))
+
+ERS.3 <- summary(ur.ers(first.diff.y1, type = "DF-GLS", model = "trend"))
+ERS.4 <- summary(ur.ers(first.diff.y2, type = "DF-GLS", model = "trend"))
+
+```
+
+
+
+C)
+
+```{r}
+
+real.output <- first.diff.y1
+hours <- first.diff.y2
+y <- cbind(real.output, hours)
+var.p <- VAR(y, ic = "AIC", lag.max = 12, type = "const")
+y <- sweep(y, 2, apply(y, 2, mean))
+
+plot(y)
+
+myVAR <- VAR(y, ic = "AIC", lag.max = 12)
+
+mySVAR <- BQ(myVAR)
+```
+
+
+D) 
+
+```{r}
+
+mySVAR
+summary(mySVAR)
+```
+
+E) 
+```{r}
+
+myIRF.c <- irf(mySVAR, n.ahead = 12, ci = .9, cumulative = TRUE)
+
+summary(mySVAR)
+
+plot( fevd(mySVAR, n.ahead=40) ,addbars=10 )
+```
+
