@@ -198,12 +198,12 @@ vec_roll_results %>%
                            key == "1pct"     ~ " 1%",
                            key == "teststat" ~ "test statistic")) %>%
     ggplot(aes(x = date, y = value, col = key)) +
-    geom_line() +
-    scale_color_manual(values = c("gray10","gray40","gray70","blue")) +
-    labs(x = "", y = "", col = "",
-         title = "Cointegration test: critical values and test statistic",
-         subtitle = paste(window_length, "quarters rolling window")) +
-    facet_wrap(~ rank, scales = "free_y")
+        geom_line() +
+        scale_color_manual(values = c("gray10","gray40","gray70","blue")) +
+        labs(x = "", y = "", col = "",
+             title = "Cointegration test: critical values and test statistic",
+             subtitle = paste(window_length, "quarters rolling window")) +
+        facet_wrap(~ rank, scales = "free_y")
 
 # plot estimated beta2
 vec_roll_results %>%
@@ -212,11 +212,11 @@ vec_roll_results %>%
     unnest() %>%
     filter(term == "tbill.l1") %>%
     ggplot(aes(x = date, y = ect1)) +
-    geom_line(col = "blue") +
-    geom_hline(yintercept = -1, linetype = "dashed") +
-    labs(x = "", y = "", col = "",
-         title = "Cointegrating Relationship: Coefficient for 3-month Treasury Bill",
-         subtitle = paste(window_length, "quarters rolling window"))
+        geom_line(col = "blue") +
+        geom_hline(yintercept = -1, linetype = "dashed") +
+        labs(x = "", y = "", col = "",
+             title = "Cointegrating Relationship: Coefficient for 3-month Treasury Bill",
+             subtitle = paste(window_length, "quarters rolling window"))
 
 # plot p-value for the test of a restricted VEC with beta2=-1
 vec_roll_results %>%

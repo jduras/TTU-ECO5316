@@ -82,15 +82,15 @@ crossing(methods, initvals) %>%
     mutate(y_LLM_ML = map2(methods, initvals, ~safe_fitSSM(y_LLM, inits = .y, method = .x))) %>%
     unnest(methods) %>%
     mutate(out = map(y_LLM_ML, ~pluck(.x, "optim.out")),
-           inits1 = map_dbl(initvals, pluck(1)),
-           inits2 = map_dbl(initvals, pluck(2)),
-           LL = -map_dbl(out, ~pluck(.x, "value", .default = NA_real_)),
-           par1 = map_dbl(out, ~pluck(.x, "par", 1, .default = NA_real_)),
-           par2 = map_dbl(out, ~pluck(.x, "par", 2, .default = NA_real_)),
-           par1.exp = exp(par1),
-           par2.exp = exp(par2)) %>%
-    arrange(desc(LL)) %>%
-    select(methods, inits1, inits2, par1, par2, par1.exp, par2.exp, LL)
+           par1_init = map_dbl(initvals, pluck(1)),
+           par2_init = map_dbl(initvals, pluck(2)),
+           loglikelihood = -map_dbl(out, ~pluck(.x, "value", .default = NA_real_)),
+           par1_out = map_dbl(out, ~pluck(.x, "par", 1, .default = NA_real_)),
+           par2_out = map_dbl(out, ~pluck(.x, "par", 2, .default = NA_real_)),
+           par1_out_exp = exp(par1_out),
+           par2_out_exp = exp(par2_out)) %>%
+    arrange(desc(loglikelihood)) %>%
+    select(methods, par1_init, par1_init, par1_out, par2_out, par1_out_exp, par2_out_exp, loglikelihood)
 
 # run Kalman Filter and Smoother with estimated parameters
 y_KFS <- KFS(y_LLM_ML$model)
