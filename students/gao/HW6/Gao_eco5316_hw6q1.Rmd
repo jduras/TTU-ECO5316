@@ -66,6 +66,7 @@ index_raw <- tq_get("^GSPC", from = "1950-01-01", to = "2017-12-31") %>%
 y_raw <- inner_join(gdpdef_raw, index_raw,by = "date") %>% 
          mutate(dlrsp500= 100*(dlindex-dldefGDP))
 y_tbl <- inner_join(y_raw,gdp_raw,by = "date")
+<<<<<<< HEAD
 
 
 #the following is better 
@@ -73,6 +74,8 @@ y_tbl <- inner_join(y_raw,gdp_raw,by = "date")
 #          inner_join(index_raw, by = "date") %>% 
 #          inner_join(gdp_raw, by = "date") %>%
 #          mutate(dlrsp500= 100*(dlindex-dldefGDP)) 
+=======
+>>>>>>> master
 y_tbl     
 ```
 
@@ -151,4 +154,8 @@ g <- autoplot(varp.f, is.date = TRUE) +
 ggplotly(g)  
 
 ```
+<<<<<<< HEAD
 Comments:  From the result, we can get our forecast for real GDP growth rate in 2019 Q1 is 2.449631, the most recent of  GDP estimate of 2019Q1 in "Federal Bank of New York Nowcast" is about 1.43.  the GDP estimate of 2019Q1 in "GDPNow Federal Bank of Atlanta forecast" is 2.7, and the average figure in Wall Street Journal Economic Forecasting Survey is 1.5, the minimum value is 0.5 and the maximum value is 2.94. Therefore, our estimate is in the range of the Wall Street Journal forecasting results, it's more optimistic than New York forecast, and a little bit less optimistic than the Atlanta forecast. 
+=======
+Comments:  From the result, we can get our forecast for real GDP growth rate in 2019 Q1 is 2.449631, the average GDP estimate of 2019Q1 in "Federal Bank of New York Nowcast" is about 1.67.  the average GDP estimate of 2019Q1 in "GDPNow Federal Bank of Atlanta forecast" is about 0.3-0.5, and the figure in Wall Street Journal Economic Forecasting Survey is 1.5, all of them are much lower than what we forecast here. The reason is due to the multistep ahead forecast, the error terms are highly correlated, which affect the precision. 
+>>>>>>> master
