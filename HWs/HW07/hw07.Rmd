@@ -1,0 +1,29 @@
+---
+title: "**Homework 7**"
+subtitle: | 
+    | Eco 5316 Time Series Econometrics
+    | Spring 2019
+    | Due: Sunday, April 27, 11.55pm
+urlcolor: magenta
+linkcolor: magenta
+output:
+  pdf_document: default
+---
+
+\renewcommand{\baselinestretch}{1.05} \selectfont
+
+
+## **Problem 1**
+
+The response of hours worked to different shocks has been studied extensively since Gali (1999), who argued that hours worked show a *decline* in response to a positive technology shock. In this problem, you will replicate some of his results.
+
+(a) First, use `tq_get` to obtain the following two quarterly time series for the period 1947Q1-2017Q4 from FRED: labor productivity, measured as Nonfarm Business Sector: Real Output Per Hour of All Persons [`OPHNFB`](https://fred.stlouisfed.org/series/OPHNFB) and for total hours worked, measured as Nonfarm Business Sector: Hours of All Persons [`HOANBS`](https://fred.stlouisfed.org/series/HOANBS). 
+(b) Test the log of real output per hour $y_{1,t} = \log OPHNFB_t$ and the log of hours $y_{2,t} = \log HOANBS_t$ for the presence of unit root using ERS test. Afterwards apply the ERS unit root test also to the first differences, $\Delta y_{1,t}$ and $\Delta y_{2,t}$. Comment on results. 
+(c) Estimate a bivariate reduced form VAR for $\mathbf y_t = (\Delta y_{1,t}, \Delta y_{2,t})'$, using AIC information criteria to select number of lags. 
+(d) Suppose that we want to analyze effects of two types of shocks - technology shocks and demand shocks on hours worked. Use Blanchard and Quah approach to obtain an SVAR model where we impose the condition that demand shocks do not affect real output per hour (i.e. labor productivity) $y_{1,t}$ in the long run.
+(e) Report and interpret the contemporaneous impact and the long run impact matrices for the SVAR.
+(f) Plot the cumulative IRFs based on the SVAR model from (d) and interpret them - explain what say about the effects of the two types of shocks on labor productivity and hours worked. 
+(g) Compare your IRFs with Figure 2 from [Gali (1999) AER](http://myweb.ttu.edu/jduras/files/teaching/eco5316/Gali1999AER.pdf).
+(h) Construct the FEVD for the SVAR model from (d). How much of the overall fluctuations in $\Delta y_{1,t}$ and $\Delta y_{2,t}$ is explained in the short run by the two shocks? How about in the long run?
+
+

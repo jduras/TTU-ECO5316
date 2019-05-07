@@ -46,12 +46,17 @@ results <-
     mutate(yearq = yearquarter(date)) %>%
     as_tsibble(index = yearq) %>%                                                               # covert to tsibble
     mutate(ar1.model  = slide(dly, ~Arima(.x, order = c(1,0,0)), .size = window.length),        # estimate models
-           arma.model = slide(dly, ~auto.arima(.x, ic = "bic", stationary = TRUE), 
+           arma.app.model = slide(dly, ~auto.arima(.x, ic = "aic", stationary = TRUE),
+                                  .size = window.length),
+           arma.model = slide(dly, ~auto.arima(.x, ic = "aic", 
+                                                   stationary = TRUE, approximation = FALSE, stepwise = FALSE), 
                               .size = window.length)) %>%  
     filter(!is.na(arma.model)) %>%                                                              # remove periods at the beginning of sample where model could not be estimated due to lack of data,
     mutate(ar1.coefs = map(ar1.model, tidy, conf.int = TRUE),                                   # extract coefficients
+           arma.app.coefs = map(arma.app.model, tidy, conf.int = TRUE),                                 
            arma.coefs = map(arma.model, tidy, conf.int = TRUE),                                 
            ar1.f = map(ar1.model, (. %>% forecast(h = 1) %>% sw_sweep())),                      # extract forecast
+           arma.app.f = map(arma.app.model, (. %>% forecast(h = 1) %>% sw_sweep())),
            arma.f = map(arma.model, (. %>% forecast(h = 1) %>% sw_sweep())))
 results
 toc()
@@ -87,11 +92,11 @@ coefs.tbl %>%
     count_gaps(.full = TRUE) %>%
     filter(term != "intercept") %>%
     ggplot(aes(x = term)) +
-          geom_linerange(aes(ymin = .from, ymax = .to)) +
-          geom_point(aes(y = .from)) +
-          geom_point(aes(y = .to)) +
-          coord_flip() +
-          facet_grid(~model, scales = "free_y") 
+        geom_linerange(aes(ymin = .from, ymax = .to)) +
+        geom_point(aes(y = .from)) +
+        geom_point(aes(y = .to)) +
+        coord_flip() +
+        facet_grid(~model, scales = "free_y") 
 
 # plot estimated coefficients with confidence interval ribbons - note that in case of figure for ar2 is bit misleading 
 coefs.tbl %>%
@@ -151,3 +156,4 @@ m1.f.1.rol %>%
 # summary
 accuracy(m1.f.1.rol %>% filter(model == "ar1") %>% pull(value), data.ts.2)      # 1 step ahead rolling scheme forecast AR(1) model
 accuracy(m1.f.1.rol %>% filter(model == "arma") %>% pull(value), data.ts.2)     # 1 step ahead rolling scheme forecast auto.arima
+accuracy(m1.f.1.rol %>% filter(model == "arma.app") %>% pull(value), data.ts.2)     # 1 step ahead rolling scheme forecast auto.arima

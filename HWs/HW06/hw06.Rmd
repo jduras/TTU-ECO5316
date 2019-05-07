@@ -1,0 +1,71 @@
+---
+title: "**Homework 6**"
+subtitle: | 
+    | Eco 5316 Time Series Econometrics
+    | Spring 2019
+    | Due: Sunday, April 21, 11.55pm
+urlcolor: magenta
+linkcolor: magenta
+output:
+  pdf_document: default
+---
+
+\renewcommand{\baselinestretch}{1.05} \selectfont
+
+## **Problem 1**
+
+(a) Use `tq_get` with `get = "economic.data"` option to obtain the following time series for the period 1950Q1-2017Q4 from FRED: U.S. real GDP [`GDPC1`](https://fred.stlouisfed.org/series/GDPC1), and GDP deflator [`GDPDEF`](https://fred.stlouisfed.org/series/GDPDEF).
+<!--
+and Leading Index for the United States, [`USSLIND`](https://fred.stlouisfed.org/series/USSLIND). 
+-->
+Then, use `tq_get` with `get = "stock.prices"` to obtain the data for the adjusted closing value of S&P 500 Index [`^GSPC`](https://finance.yahoo.com/chart/%5EGSPC) for the period 1950-01-01 to 2017-12-31 from Yahoo Finance. Construct the quarterly average values of the closing price of S&P 500 Index. Hint: one way how to do it is as follows
+    ```{r eval = FALSE}
+    tq_get("^GSPC", from = "1950-01-01", to = "2017-12-31") %>%
+            select(date, adjusted) %>%
+            mutate(qtryear = as.yearqtr(date)) %>%
+            group_by(qtryear) %>%
+            summarise(SP500 = mean(adjusted)) %>%
+            ungroup()
+    ```
+
+(b) Use the data from (a) to construct the following two time series: 
+$$
+    dlrGDP_t = 400 \Delta\log GDP_t
+$$ 
+which approximates the annualized growth rate of the U.S. real GDP and 
+$$
+    dlrSP500_t = 100 (\Delta \log SP500_t - \Delta \log GDPDEF_t)
+$$ 
+which approximates the inflation adjusted annual return of S&P 500. 
+(c) Estimate a bivariate reduced form VAR for $\mathbf y_t = (dlrSP500_t, dlrGDP_t)'$ for the period 1990Q1-2018Q4, use information criteria to select number of lags. 
+<!--
+How large is the correlation of residuals in the model, and what are the implications for IRFs and FEVDs based on Choleski decomposition?
+-->
+(d) Run the Granger causality tests for both variables. What do the results suggest about the predictive power of the two variables? Discuss the economic intution behind your results of Granger causality test. 
+(e) Estimate a restricted VAR model in which you remove lags based on Granger causality test from (d).
+<!--
+(f) Plot IRFs and FEVDs for the restricted VAR model based on Choleski decomposition. 
+Afterwards reverse the order of the variables in the VAR and plot IRFs and FEVD based on Choleski decomposition for the alternative order. -
+Does the order matter much in this particular case?
+-->
+<!--
+(e) Reestimate your VAR, with a third variable, Leading Index for the United States.
+-->
+(f) Use the VAR model to create a multistep forecast for 2019Q1-2019Q4. Compare your forecast for real GDP growth rate in 2019Q1 with (1) the [Federal Bank of New York Nowcast](https://www.newyorkfed.org/research/policy/nowcast), (2) the [GDPNow Federal Bank of Atlanta forecast](https://www.frbatlanta.org/cqer/research/gdpnow.aspx?panel=1), and (3) the minimum, the average, and the maximum forecasts in the [Wall Street Journal Economic Forecasting Survey](http://projects.wsj.com/econforecast/?standalone=1#ind=gdp&r=20).
+
+<!--
+\newpage
+
+## **Problem 2**
+
+The response of hours worked to different shocks has been studied extensively since Gali (1999), who argued that hours show a *decline* in response to a positive technology shock. In this problem, you will replicate some of his results.
+
+(a) First, use `tq_get` to obtain the following two quarterly time series for the period 1947Q1-2017Q4 from FRED: labor productivity, measured as Nonfarm Business Sector: Real Output Per Hour of All Persons [`OPHNFB`](https://fred.stlouisfed.org/series/OPHNFB) and for total hours worked, measured as Nonfarm Business Sector: Hours of All Persons [`HOANBS`](https://fred.stlouisfed.org/series/HOANBS). 
+(b) Test the log of real output per hour $y_{1,t} = \log OPHNFB_t$ and the log of hours $y_{2,t} = \log HOANBS_t$ for the presence of unit root using ERS test. Afterwards apply the ERS unit root test also to the first differences, $\Delta y_{1,t}$ and $\Delta y_{2,t}$. Comment on results. 
+(c) Estimate a bivariate reduced form VAR for $\mathbf y_t = (\Delta y_{1,t}, \Delta y_{2,t})'$, using AIC information criteria to select number of lags. 
+(d) Suppose that we want to analyze effects of two types of shocks - technology shocks and demand shocks on hours worked. Use Blanchard and Quah approach to obtain an SVAR model where we impose the condition that demand shocks do not affect real output per hour (i.e. labor productivity) $y_{1,t}$ in the long run.
+(e) Report and interpret the contemporaneous impact and the long run impact matrices for the SVAR.
+(f) Plot the cumulative IRFs based on the SVAR model from (d) and interpret them - explain what say about the effects of the two types of shocks on labor productivity and hours worked. 
+(g) Compare your IRFs with Figure 2 from [Gali (1999) AER](http://myweb.ttu.edu/jduras/files/teaching/e5316/Gali1999AER.pdf).
+(h) Construct the FEVD for the SVAR model from (d). How much of the overall fluctuations in $\Delta y_{1,t}$ and $\Delta y_{2,t}$ is explained in the short run by the two shocks? How about in the long run?
+-->

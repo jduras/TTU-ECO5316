@@ -1,0 +1,1123 @@
+---
+title: "Eco 5316 Time Series Econometrics"
+subtitle: Lecture 16 Vector Autoregression (VAR) Models
+output:
+  beamer_presentation:
+    includes:
+        in_header: lecturesfmt.tex
+    # keep_tex: yes
+    highlight: tango
+    # fonttheme: professionalfonts
+    fig_caption: false
+fontsize: 9pt
+urlcolor: magenta
+linkcolor: magenta
+---
+
+## Motivation
+
+```{r echo=FALSE}
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width=80)
+knitr::opts_chunk$set(echo = TRUE,  mysize=TRUE, size='\\scriptsize')
+```
+
+\fontsize{9}{10}\selectfont
+
+- theoretical models are developed to shed light on interactions and dynamic relationship between variables  
+    - income, consumption
+    - interest rates, investment  
+    - interest rates, inflation, output gap  
+    - interest rates, exchange rates  
+    - return of individual stocks, stock market index   
+    
+- following similar goals, we will now move from univariate times series models to multivariate time series models 
+
+
+
+## Intervention Analysis
+
+<!--
+- effect of seatbealt regulation on car accident casualties
+$$
+    y_t = \phi_0 + \phi_1 y_{t-1} + \gamma z_t + \varepsilon_t
+$$
+where $z_t=0$ for $t < 1973M1$ and $z_t=1$ for $t\geq 1973M1$
+-->
+
+- example: effect of installing metal detectors  at airports (starting in January 1973) on number of aircraft hijackings
+$$
+    y_t = \phi_0 + \phi_1 y_{t-1} + \omega x_t + \varepsilon_t
+$$
+where $x_t=0$ for $t<$ 1973M1 and $x_t=1$ for $t\geq$ 1973M1
+
+- this model can be rewritten as
+$$
+    y_t = \frac{\phi_0}{1-\phi_1 L} + \frac{\omega_0}{1-\phi_1 L} x_t + \frac{1}{1-\phi_1 L} \varepsilon_t
+$$
+or 
+$$
+    y_t = \frac{\phi_0}{1-\phi_1} + \omega_0 \sum_{i=0}^\infty \phi_1^i x_{t-i} +  \sum_{i=0}^\infty \phi_1^i \varepsilon_{t-i}
+$$
+- immediate impact is given by $\omega_0$, long term effect is $\omega_0/(1-\phi_1)$
+
+
+<!--
+## Intervention Analysis
+
+\includegraphics[trim=0cm 0cm 0cm 0cm, clip, width=9cm]{figures/enders/fig5_2.png}
+-->
+
+
+## Intervention Analysis
+
+alternative ways how to model interventions 
+
+- **pulse function** - temporary intervention: $x_t=1$ if $t=t_I$, and $x_t=0$ otherwise  
+- **pure jump function** - if the intervention is permanent, implemented fast: $x_t=1$ if $t\geq t_I$, and $x_t=0$ otherwise  
+- **prolonged impulse function** - intervention in place for a limited time: $x_t=1$ if $t \in [t_I,t_I+D]$, and $x_t=0$ otherwise  
+- **gradually changing function** - intervention phased in, implemented gradually over time: for example $x_t=\min \{(t-t_I+1)/4,1\}$ if $t\geq t_I$, and $x_t=0$ otherwise
+
+
+
+## Autoregressive Distributed Lag (ARDL) model
+
+- going beyond deterministic 0/1 dummy variable and allowing for some general exogenous variable $x_t$, which has effect of $y_t$ that is distributed over time yields an **autoregressive distributed lag model**, ARDL$(p,r)$
+$$
+    \phi(L) y_t = \delta(L) x_t + \varepsilon_t
+$$
+where $\phi(L)$ is lag polynomial of order $p$, $\delta(L)$ is lag polynomial of order $r$
+
+- immediate effect is $\delta_0$, long-run effect cumulative effect is $\frac{\delta(1)}{\theta(1)}$
+
+- crucial assumption: $\{x_t\}$ is exogenous, evolves independently of $\{y_t\}$ 
+
+
+
+## Autoregressive Distributed Lag (ARDL) model
+
+autoregressive distributed lag model nests
+
+- static regression model: $\phi(L) = 1$, $\delta(L) = \delta_0$
+- autoregressive model AR$(p)$: $\phi(L) = 1-\phi_1-\ldots-\phi_p$, $\delta(L) \equiv 0$
+- distributed lag DL$(r)$: $\phi(L) = 1$, $\delta(L) = \delta_0 + \delta_1 L + \ldots + \delta_r L^r$
+
+
+
+## Sims' Critique
+
+- intervention analysis and ARDL model assume that there is no feedback from $\{y_t\}$ to $\{x_t\}$, thus $\{x_t\}$ is truly exogenous
+
+- but such feedback is likely to exist for some policies - some policy variables are set with specific reference to the state of other variables in the system (e.g. Fed setting interest rate)
+
+- Sims (1980): the proper way is then to estimate multivariate models in unrestricted reduced form, treating *all* variables as endogenous
+
+
+
+## Bivariate Structural VAR(1) Model
+
+- as with ARMA models, we will assume that times series are weakly stationary
+
+- suppose that weakly stationary time series $\{y_{1,t}\}$, $\{y_{2,t}\}$ follow 
+$$
+\begin{aligned}
+    y_{1,t} &= c_{0,1} - b_{0,12} y_{2,t} + b_{1,11} y_{1,t-1} + b_{1,12} y_{2,t-1} + \varepsilon_{1,t} \\
+    y_{2,t} &= c_{0,2} - b_{0,21} y_{1,t} + b_{1,21} y_{1,t-1} + b_{1,22} y_{2,t-1} + \varepsilon_{2,t} 
+\end{aligned}
+$$
+or equivalently
+$$
+    \bB_0 \mathbf y_t = \bc_0 + \bB_1 \by_{t-1} + \bvarepsilon_t
+$$
+where
+$$
+\bB_0 =
+\begin{pmatrix}
+    1 & b_{0,12} \\
+    b_{0,21} & 1
+\end{pmatrix}
+\quad 
+ \bB_1 =
+\begin{pmatrix}
+    b_{1,11} & b_{1,12} \\
+    b_{1,21} & b_{1,22}
+\end{pmatrix}
+\quad 
+\bc_0 =
+\begin{pmatrix}
+    c_{0,1} \\
+    c_{0,2} 
+\end{pmatrix}
+\quad 
+\bvarepsilon_t =
+\begin{pmatrix}
+    \varepsilon_{1,t} \\
+    \varepsilon_{2,t}
+\end{pmatrix}
+$$
+and
+$$
+E(\bvarepsilon_t) = \mathbf 0
+\qquad
+var(\bvarepsilon_t) =
+\begin{pmatrix}
+    \sigma^2_{\varepsilon_1} & 0 \\
+    0 & \sigma^2_{\varepsilon_2} 
+\end{pmatrix}
+$$
+
+- can't estimate this by OLS since $y_{1,t}$ has a contemporaneous effect on $y_{2,t}$ and $y_{2,t}$ has a contemporaneous effect on $y_{1,t}$ - **endogeneity problem** - if regressors and error terms are correlated, OLS estimates are biased
+
+
+
+## Bivariate Reduced Form VAR(1)
+
+- suppose that $\by_t = (y_{1,t}, y_{2,t})'$ follows
+$$
+    \bB_0 \by_t = \bc_0 + \bB_1 \by_{t-1} + \bvarepsilon_t
+$$
+with $E(\bvarepsilon_t) = \mathbf 0$,  $var(\bvarepsilon_t) = \bSigma_\varepsilon$
+
+- premultiply by $\bB_0^{-1}$ to obtain
+$$
+   \by_t = \bc + \bA_1 \by_{t-1} + \be_t
+$$
+where $\bc = \bB_0^{-1} \bc_0$, $\bA_1 = \bB_0^{-1} \bB_1$, $\be_t = \bB_0^{-1} \bvarepsilon_t$, in addition also \newline $E(\be_t) = \mathbf 0$ and $var(\be_t) = \bSigma_e = \bB_0^{-1} \bSigma_\varepsilon \bB_0^{-1}{'}$  
+\vspace{0.25cm}
+this system can now be estimated equation by equation using standard OLS 
+
+- even though the innovations $\be_t$ may be contemporaneously correlated, OLS is efficient and equivalent to GLS since all equations have identical regressors
+
+- on structural vs reduced form models: [https://en.wikipedia.org/wiki/Reduced_form](https://en.wikipedia.org/wiki/Reduced_form)
+
+
+
+## Example: Bivariate Structural and Reduced Form VAR(1)
+
+- suppose that $\by_t = (y_{1,t}, y_{2,t})'$ follows a structural VAR(1)
+$$
+    \bB_0 \by_t = \bc_0 + \bB_1 \by_{t-1} + \bvarepsilon_t
+$$
+with
+$$
+\bB_0 =
+\begin{pmatrix*}[r]
+    1 & 0 \\
+    -.5 & 1
+\end{pmatrix*}
+\quad 
+ \bB_1 =
+\begin{pmatrix*}[r]
+    .6 & .2 \\
+    -.1 & .5
+\end{pmatrix*}
+\quad 
+\bc_0 =
+\begin{pmatrix}
+    0 \\
+    0
+\end{pmatrix}
+\quad 
+\bSigma_\varepsilon =
+\begin{pmatrix}
+    1 & 0 \\
+    0 & 1
+\end{pmatrix}
+$$
+- then we have
+$$
+\bB_0^{-1} =
+\begin{pmatrix}
+    1 & 0 \\
+    .5 & 1
+\end{pmatrix}
+$$
+and thus the associated reduced form VAR(1) model for $\by_t$ is
+$$
+    \by_t = \bc + \bA_1 \by_{t-1} + \be_t
+$$
+with
+$$
+\bA_1 =
+\begin{pmatrix}
+    .6 & .2 \\
+    .2 & .6
+\end{pmatrix}
+\quad 
+\bc =
+\begin{pmatrix}
+    0 \\
+    0
+\end{pmatrix}
+\quad 
+\bSigma_e =
+\begin{pmatrix}
+    2 & 1 \\
+    1 & 2.5
+\end{pmatrix}
+$$
+- a simulated path of $\by_t$ with 100 observations is below in panel (i) - note that $\{y_{1,t}\}$ and $\{y_{2,t}\}$ tend to move in the same direction
+
+
+
+## Example: Bivariate Structural and Reduced Form VAR(1)
+
+- alternatively, suppose that $\by_t = (y_{1,t}, y_{2,t})'$ follows a structural VAR(1)
+$$
+    \bB_0 \by_t = \bc_0 + \bB_1 \by_{t-1} + \bvarepsilon_t
+$$
+with
+$$
+\bB_0 =
+\begin{pmatrix}
+    1 & 0 \\
+    .5 & 1
+\end{pmatrix}
+\quad 
+ \bB_1 =
+\begin{pmatrix*}[r]
+    .6  & -.2 \\
+    .1 &  .5
+\end{pmatrix*}
+\quad 
+\bc_0 =
+\begin{pmatrix}
+    0 \\
+    0
+\end{pmatrix}
+\quad 
+\bSigma_\varepsilon =
+\begin{pmatrix}
+    1 & 0 \\
+    0 & 1
+\end{pmatrix}
+$$
+- then we have
+$$
+\bB_0^{-1} =
+\begin{pmatrix*}[r]
+    1 & 0 \\
+    -.5 & 1
+\end{pmatrix*}
+$$
+and thus the associated reduced form VAR(1) model for $\by_t$ is
+$$
+    \by_t = \bc + \bA_1 \by_{t-1} + \be_t
+$$
+with
+$$
+\bA_1 =
+\begin{pmatrix*}[r]
+    .6 & -.2 \\
+    -.2 & .6
+\end{pmatrix*}
+\quad 
+\bc =
+\begin{pmatrix}
+    0 \\
+    0
+\end{pmatrix}
+\quad 
+\bSigma_e =
+\begin{pmatrix*}[r]
+    2 & -1 \\
+    -1 & 2.5
+\end{pmatrix*}
+$$
+- a simulated path of $\by_t$ with 100 observations is below in panel (ii) - note that $\{y_{1,t}\}$ and $\{y_{2,t}\}$ tend to move in opposite directions
+
+
+
+## Example: Bivariate Structural and Reduced Form VAR(1)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5.5}
+## simulate a bivariate VAR(1) model
+
+library(dse)
+library(vars)
+
+k <- 2
+p <- 1
+## lag-polynomial A(L) of the structural VAR model
+##   A0*y = A1*y(-1) + eps
+##   where A0=[1 0; -0.8 1] and A1=[0.5 0.2; 0.2 0.34]
+## so that the reduced form VAR is
+##   y = B1*y(-1) + e
+##   where B1 = A0^{-1}*A1 = [0.5 0.2; 0.2 0.5]
+mat.A.1 <- array(c(1.0, -0.6,
+                  -0.5,  0.1,
+                   0.0, -0.2,
+                   1.0, -0.5),
+                 c(p+1, k, k))
+## lag-polynomial A(L) of the structural VAR model
+##   A0*y = A1*y(-1) + eps
+##   where A0=[1 0; 0.5 1] and A1=[0.6 -0.2; 0.1 0.5]
+## so that the reduced form VAR is
+##   y = B1*y(-1) + e
+##   where B1 = A0^{-1}*A1 = [0.6 -0.2; 0.2 0.6]
+mat.A.2 <- array(c(1.0, -0.6,
+                   0.5, -0.1,
+                   0.0,  0.2,
+                   1.0, -0.5),
+                 c(p+1, k, k))
+
+## variance-covariance matrix for shocks
+mat.B <- diag(2)
+
+## constant term
+c0 <- c(0,0)
+
+## generating a VAR(2) model
+var1.1  <- ARMA(A = mat.A.1, B = mat.B, TREND = c0)
+var1.2  <- ARMA(A = mat.A.2, B = mat.B, TREND = c0)
+
+## simulate the VAR model
+T <- 100
+var1.sim <- simulate(var1.1, sampleT=T, noise = list(w=matrix(rnorm(k*T), nrow=T, ncol=k)), rng=list(seed = c(42)))
+var1.data.1 <- matrix(var1.sim$output, nrow=T, ncol=2)
+ymax.1 <- 1.1*max(abs(var1.data.1))
+var1.sim <- simulate(var1.2, sampleT=T, noise = list(w=matrix(rnorm(k*T), nrow=T, ncol=k)), rng=list(seed = c(42)))
+var1.data.2 <- matrix(var1.sim$output, nrow=T, ncol=2)
+ymax.2 <- 1.1*max(abs(var1.data.2))
+
+## plot the series
+par(mfrow=c(1,2))
+
+plot(var1.data.1[,1], main="panel (i)", xlab="", ylab="", ylim=c(-ymax.1,ymax.1), type="l", col="blue", lty="solid")
+lines(var1.data.1[,2], col="red", lty="dashed")
+abline(h=0, lty="dotted")
+legend("topleft",c(expression(y["1,t"]), expression(y["2,t"])), bty="n", col=c(4,2), lty = c(1,2))
+
+plot(var1.data.2[,1], main="panel (ii)", xlab="", ylab="", ylim=c(-ymax.2,ymax.2), type="l", col="blue", lty="solid")
+lines(var1.data.2[,2], col="red", lty="dashed")
+abline(h=0, lty="dotted")
+legend("topleft",c(expression(y["1,t"]), expression(y["2,t"])), bty="n", col=c(4,2), lty = c(1,2))
+```
+
+
+
+## General Reduced Form VAR$(p)$ Model
+
+- multivariate order $p$ VAR model: suppose that $\by_t = (y_{1,t}, y_{2,t}, \ldots, y_{k,t})'$ and that
+$$
+   \by_t = \bc + \bA_1 \by_{t-1} + \ldots +  \bA_p \by_{t-p} + \be_t
+$$
+where $\bc$, $\by_t$, $\be_t$ are $k \times 1$ vectors, and $\bA_i$ are $k \times k$ matrices
+
+- using the lag operator we can write
+$$
+     \bA(L) \by_t = \bc + \be_t
+$$
+where $\bA(L)$ is now a matrix polynomial in lag operator
+
+- so VAR$(p)$ vs AR$(p)$ are kind of like Ice Ice Baby vs Under Pressure: https://www.youtube.com/watch?v=6TLo4Z_LWu4
+
+<!--
+https://www.youtube.com/watch?v=a-1_9-z9rbY
+-->
+
+
+## Lag Selection 
+
+- VAR$(p)$ has $k+ pk^2$ parameters
+
+- each additional lag introduces additional $k^2$ parameters, model thus become overparameterized quickly, and a lot of parameters will be insignificant
+<!--
+- regressors in a VAR are however likely to be highly collinear, so $t$-test can not be used to eliminate insignifficant variables
+-->
+
+- information criteria - choose $p$ to minimize AIC, SIC
+
+<!--  
+- log-likelihood ratio test: basic idea: successive sequence of testing order $i$ against order $i+1$ buy comparing the (log) determinants of the residual variance-covariance matrices of VAR$(i)$ and a VAR$(i+1)$
+-->
+
+
+
+## Example
+
+suppose we want to analyze joint dynamics of house prices in Los Angeles and Riverside, two MSAs about 60 miles apart
+
+```{r message = FALSE, warning = FALSE}
+library(tidyquant)
+library(ggplot2)
+library(ggfortify)
+
+theme_set(theme_bw() + 
+          theme(strip.text.x = element_text(hjust = 0),
+                strip.text.y = element_text(hjust = 1),
+                strip.background = element_blank()))
+
+# obtain data on house price index for Los Angeles MSA and for Riverside MSA
+hpi_tbl <-
+    tq_get(c("ATNHPIUS31084Q", "ATNHPIUS40140Q"), get = "economic.data",
+           from  = "1940-01-01", to = "2018-12-31") %>%
+    group_by(symbol) %>%
+    rename(y = price) %>%
+    mutate(dly = log(y) - lag(log(y)),
+           msa = case_when(symbol == "ATNHPIUS31084Q" ~ "LA",
+                           symbol == "ATNHPIUS40140Q" ~ "RI")) %>%
+    ungroup() %>%
+    select(msa, date, y, dly)
+```
+
+
+
+## Example
+
+```{r echo=FALSE, fig.height = 6.5}
+# plot house price index and log change in house price index in Los Angeles MSA and for Riverside MSA
+hpi_tbl %>%
+    gather(variable, value, -date, -msa) %>%
+    mutate(variable_labels = case_when(variable == "y" ~ "House Price Index, quarterly",
+                                       variable == "dly" ~ "House Price Index, quarterly, log change")) %>%
+    ggplot(aes(x = date, y = value, group = msa)) +
+        geom_line(aes(col = msa, linetype = msa)) +
+        scale_color_manual(values = c("blue", "red"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        scale_linetype_manual(values = c("solid", "dashed"), labels = c("Los Angeles MSA", "Riverside MSA")) +
+        labs(x = "", y = "", color = "", linetype = "") +
+        facet_wrap(~variable_labels, ncol = 1, scales = "free_y") +
+        theme(legend.position = c(0.1, 0.94),
+              legend.key = element_blank(),
+              legend.background = element_blank(),
+              axis.ticks = element_blank())
+```
+
+
+
+## Example
+
+```{r}
+# convert log change in house price index in Los Angeles MSA and for Riverside MSA into ts
+library(timetk)
+hpi_ts <-
+    hpi_tbl %>%
+    select(msa, date, dly) %>%
+    spread(msa, dly) %>%
+    filter(date >= "1976-07-01" & date <= "2012-10-01") %>%
+    tk_ts(select = c("LA","RI"), start = 1976.5, frequency = 4)
+
+library(vars)
+VARselect(hpi_ts, lag.max = 8, type = "const") %>% print(digits = 4)
+```
+
+
+
+## Example
+
+```{r message=FALSE, warning=FALSE}
+var1 <- VAR(hpi_ts, p = 1, type = "const")
+var1
+```
+
+\normalsize more detailed var_roll_results (standard errors, t-statistics, ...) can be obtained using
+
+```{r eval=FALSE}
+summary(var1)
+```
+
+
+
+## Example
+
+```{r fig.width=4}
+plot(var1, nc = 4, lag.acf = 16, lag.pacf = 16)
+```
+
+
+
+## Granger Causality
+
+- test whether lags of one variable enter the equation for another variable
+
+- variable $j$ does not **Granger cause** variable $i$ if all coefficients on lags of variable $j$ in the equation for variable $i$ are zero, that is
+$$
+    a_{1,ij} = a_{2,ij} = \ldots = a_{p,ij} = 0
+$$
+<!--
+or equivalently if the coefficients of the polynomial $\bA_{ij}(B)$ are zero
+-->
+
+<!--
+- we can use the usual $F$ test for this
+-->
+
+- we thus test $H_0: a_{1,ij} = \ldots = a_{p,ij} = 0$ against $H_A: \exists \ell \in \{1,\ldots,p\}$ such that $a_{\ell,ij} \neq 0$ using $F$-statistic and reject null if the statistic exceeds the critical value at the chosen level
+
+<!--
+$$
+    F = \frac{(SSR_R-SSR_U)/d_1}{SSR_U/d_2}
+$$
+where $SSR_R$ and $SSR_U$ are the sums of squared residuals in the restricted and in the unrestricted model, and $d_1=p$, $d_2=(T-p)k-(k+pk^2)$ are the degrees of freedom
+-->
+
+- in addition: if the innovation to $y_{i,t}$ and the innovation to $y_{j,t}$ are correlated we say there is **instantaneous causality**
+
+
+
+## Granger Causality
+
+\vspace{0.1cm}
+
+```{r message=FALSE, warning=FALSE}
+causality(var1, cause = "LA")
+```
+
+```{r message=FALSE, warning=FALSE}
+causality(var1, cause = "RI")
+```
+
+
+
+## Granger Causality
+
+as the var_roll_results of the Granger causality test for VAR(1) show
+
+-  we reject that $\Delta \log p_H^{LA}$ does not Granger cause $\Delta \log p_H^{RI}$ since the p-value in this case is $1.414 \times 10^{-6}$
+
+-  we can not reject that $\Delta \log p_H^{RI}$ does not Granger cause $\Delta \log p_H^{LA}$ since the p-value in this case is 0.579
+
+similar conclusion can be made for the VAR(3) model suggested by the AIC
+
+
+
+## Granger Causality
+
+```{r message=FALSE, warning=FALSE}
+varp <- VAR(hpi_ts, ic = "AIC", lag.max = 8, type = "const")
+causality(varp, cause = "LA")
+causality(varp, cause = "RI")
+```
+
+
+
+## Granger Causality
+
+based on the var_roll_results of the Granger causality test we thus remove the lags of $\Delta \log p_{H,t}^{RI}$ from the equation for $\Delta \log p_{H,t}^{LA}$ 
+
+```{r message=FALSE, warning=FALSE}
+# define a  matrix with restictions
+mat_r <- matrix(1, nrow = 2, ncol = 7)
+mat_r[1, c(2,4,6)] <- 0
+
+# estimate a restricted VAR
+varp_r <- restrict(varp, method = "manual", resmat = mat_r)
+varp_r
+```
+
+
+
+## Forecasting
+
+recall: under quadratic loss function, the forecast is the conditional mean
+
+for simplicity, we will analyze the VAR(1) case but the method can be generalized to VAR$(p)$ model in a straightforward way
+
+- one step ahead forecast
+$$
+    \bmu_{t+1|t} = E_t \by_{t+1} = \bc + \bA_1 \by_t
+$$
+and forecast error
+$$
+    \by_{t+1} - \bmu_{t+1|t} = \big(\bc + \bA_1 \by_t + \be_{t+1}\big) - \big(\bc + \bA_1 \by_t\big) = \be_{t+1}
+$$
+
+- two step ahead
+$$
+    \bmu_{t+2|t} = \bc + \bA_1 \bmu_{t+1|t}
+$$
+and forecast error
+$$
+    \by_{t+2} - \bmu_{t+2|t} = \big(\bc + \bA_1 \by_{t+1} + \be_{t+2}\big) - \big(\bc + \bA_1 \bmu_{t+1|t}\big) = \bA_1 \be_{t+1} + \be_{t+2}
+$$
+
+- in general, $h$ step ahead forecast
+$$
+    \bmu_{t+h|t} = \bc + \bA_1 \bmu_{t+h-1|t}
+$$
+and forecast error
+$$
+    \by_{t+h} - \bmu_{t+h|t} = \bA_1^{h-1} \be_{t+1} + \ldots + \bA_1 \be_{t+h-1} + \be_{t+h}
+$$
+
+
+
+## Forecasting
+
+```{r message=FALSE, warning=FALSE, fig.height=7}
+# construct 1 to 12 quarter ahead forecast and its 90% confidence interval
+var1_f <- predict(var1, n.ahead = 12, ci = 0.9)
+var1_f
+```
+
+
+
+## Forecasting
+
+```{r message=FALSE, warning=FALSE, fig.height=7}
+# fanchart - by default the step is 0.1
+fanchart(var1_f, lwd = 2)
+```
+
+
+
+## Forecasting
+
+```{r message=FALSE, warning=FALSE, fig.height=6}
+library(ggfortify)
+autoplot(var1_f) + geom_hline(yintercept = 0, linetype = "dashed") + theme_bw()
+```
+
+
+
+## Forecasting
+
+```{r message=FALSE, warning=FALSE}
+library(tibbletime)
+library(broom)
+
+# estimate rolling VAR with window size = window_length
+window_length <- nrow(hpi_ts)
+# create rolling VAR function with rollify from tibbletime package
+roll_VAR <- rollify(function(LA, RI) {
+                        x <- cbind(LA, RI)
+                        VAR(x, ic = "AIC", lag.max = 8, type = "const")
+                        },
+                    window = window_length, unlist = FALSE)
+
+
+# estimate rolling VAR model, create 1 period ahead rolling forecasts
+var_roll_results <-
+    hpi_tbl %>%
+    dplyr::select(msa, date, dly) %>%
+    spread(msa, dly) %>%
+    filter(date >= "1976-07-01") %>%
+    as_tbl_time(index = date) %>%                                                           
+    mutate(VAR.model = roll_VAR(LA,RI)) %>%                                                 
+    filter(!is.na(VAR.model)) %>%                                                           
+    mutate(var_coefs = map(VAR.model, (. %$% map(varresult, tidy, conf.int = TRUE) %>%      
+                                           map(as.tibble) %>%
+                                           bind_rows(.id = "msa"))),
+           var_f = map(VAR.model, (. %>% predict(n.ahead = 1) %$%                           
+                                       fcst %>%
+                                       map(as.tibble) %>%
+                                       bind_rows(.id = "msa"))))
+```
+
+
+
+## Forecasting
+
+```{r FCSTs, eval=FALSE}
+# extract 1 period ahead rolling forecasts
+var_roll_f <-
+    bind_rows(
+        # actual data
+        hpi_tbl %>%
+            dplyr::select(date, msa, dly) %>%
+            rename(value = dly) %>%
+            mutate(key = "actual"),
+        # forecasts
+        var_roll_results %>%
+            dplyr::select(date, var_f) %>%
+            unnest(var_f) %>%
+            rename(value = fcst) %>%
+            mutate(key = "forecast",
+                   date = date %m+% months(3))
+    ) %>%
+    arrange(date, msa)
+
+# plot the 1 period ahead rolling forecasts
+var_roll_f %>%
+    dplyr::filter(date >= "2000-01-01") %>%
+    mutate(msa.f = factor(msa, labels = c("Los Angeles","Riverside"))) %>%
+    ggplot(aes(x = date, y = value, col = key, group = key)) +
+        geom_ribbon(aes(ymin = lower, ymax = upper), color = NA, fill = "steelblue", alpha = 0.2) +
+        geom_line(size = 0.7) +
+        geom_point(size = 0.7) +
+        geom_hline(yintercept = 0, linetype = "dashed") +
+        scale_color_manual(values = c("black","blue")) +
+        labs(x = "", y = "", 
+             title = "Rolling one step ahead forecast for House Price Index, quarterly, log change") +
+        facet_wrap(~ msa.f, scales = "free_y", ncol = 1) +
+        theme(legend.position = "none")
+```
+
+
+
+## Forecasting
+
+```{r ref.label="FCSTs", echo = FALSE, fig.height=5.5}
+```
+
+
+
+<!--
+## VAR$(p)$
+reduced form VAR$(p)$ model
+$$
+    (\bI-\bA(B)) \by_t = \be_t
+$$
+since $\be_t = \bB_0^{-1} \bvarepsilon_t$ we have
+$$
+    \by_t = (\bI-\bA(B))^{-1} \bB_0^{-1} \bvarepsilon_t
+$$
+-->
+
+
+
+## Innovations Accounting
+
+two important tools used to examine relationships among economic variables
+
+- **impulse-response analysis**: the goal is to track the response of a variable $y_i$ to a one time shock $\varepsilon_{j,t}$
+ 
+- **forecast error variance decomposition**: the goal is to find the fraction of the overall fluctuations in $y_i$ that is due to shock $\varepsilon_{j,t}$
+
+\vspace{1cm}
+
+as with forecasting, we will analyze the VAR(1) case but the method can be generalized for VAR$(p)$ model
+
+
+
+## Impulse-Response Functions (IRF)
+
+- goal: obtain **response of $y_i$ over time to a one time increase in $\varepsilon_{j,t}$**
+  
+- IRFs are constructed using vector moving average (VMA) representation 
+
+- consider a reduced form VAR(1)
+\small
+$$
+   \by_t = \bc + \bA_1 \by_{t-1} + \be_t
+$$
+\normalsize
+by repeated substitutions 
+\small
+$$
+   \by_t = \bc + \bA_1 \big( \bc + \bA_1 \by_{t-2} + \be_{t-1} \big) + \be_t 
+         = \ldots  
+         = \bmu + \sum_{h=0}^\infty \bA_1^h \be_{t-h} 
+$$
+where $\bmu = \sum_{h=0}^\infty \bA_1^h \bc$ is the long run average of $\by$
+
+- since $\be_t = \bB_0^{-1} \bvarepsilon_t$ we can define $\bPsi_h = \bA_1^h \bB_0^{-1}$ and write
+$$
+    \by_t - \bmu = \sum_{h=0}^\infty \bPsi_h \bvarepsilon_{t-h} 
+$$
+
+- $\psi_{h,ij}$ i.e. row $i$ column $j$ element of matrix $\bPsi_h$ shows 
+    - the impact of a unit increase in  $\varepsilon_{j,t-h}$ on $y_{i,t}$
+    - the impact of a unit increase in  $\varepsilon_{j,t}$ on $y_{i,t+h}$
+
+- a plot of $\psi_{h,ij}$ as function of $h$ is the **impulse-response function** plot
+
+- confidence intervals for IRFs  - parameters of the VAR model are unknown, estimated, there is thus uncertainty regarding the response of $\by$ to changes in $\bvarepsilon$
+
+
+
+## Impulse-Response Functions (IRF)
+
+- the IRF components $\Psi_{h,ij}$ show $\frac{\partial y_{i,t+h}}{\partial \varepsilon_{j,t}}$ that is, how $y_i$ responds over time to a one time increase in $\varepsilon_j$ 
+
+- when constructing the IRF the size of the one time shock in $\varepsilon_j$ is taken to be one standard deviation $\sigma_{\epsilon_j}$
+
+- the plot of the IRF for $y_i$ shows the effect $\varepsilon_j$ of as deviations of $y_i$ from its long run equilibrium $\mu_i$
+
+- because all variables in VAR are weakly stationary, deviations eventually converge to 0 as the system converges back to the long run equilibrium given by $\bmu$
+
+
+
+## Impulse-Response Functions (IRF)
+
+```{r message=FALSE, warning=FALSE, fig.height=5.5}
+var1_irf <- irf(var1, n.ahead = 40)
+par(mfcol = c(2,2), cex = 0.8, mar = c(3,4,2,2))
+plot(var1_irf, plot.type = "single", lwd = 2)
+```
+
+
+
+## Impulse-Response Functions (IRF)
+
+IRFs for VAR(1) model of house prices in Los Angeles and Riverside show that
+
+-  $\Delta \log p_H^{LA}$ and $\Delta \log p_H^{LA}$ react to $\varepsilon_{LA}$ in similar way and with similar magnitude - on impact the price increases by about 1.5% in both markets, this is followed by a gradual decline but the effects are significant even after 16 quarters (4 years)
+
+-  $\Delta \log p_H^{LA}$ increases only very little in response to $\varepsilon_{RI}$ and this response is not statistically significant since the 95% confidence interval contains 0
+
+ -  $\Delta \log p_H^{LA}$ increases more in response to $\varepsilon_{RI}$ but this increase is short lived and the variable converges back within about 3 quarters
+ 
+ - the demand and supply shock in the Los Angeles market thus clearly dominate the dynamics and the variability of home prices in both markets, their transmission into the Riverside market is quite strong
+
+
+
+## Impulse-Response Functions (IRF)
+
+```{r IRFs, eval=FALSE}
+# arrange IRF data into a tibble to be used with ggplot
+var1_irf_tbl <-
+    var1_irf[1:3] %>%
+    modify_depth(2, as.tibble) %>%
+    modify_depth(1, bind_rows, .id = "impulse") %>%
+    map_df(bind_rows, .id = "key") %>%
+    gather(response, value, -key, -impulse) %>%
+    group_by(key, impulse, response) %>%
+    mutate(lag = row_number()) %>%
+    ungroup() %>%
+    spread(key, value)
+
+# plot IRFs using ggplot
+ggplot(data = var1_irf_tbl, aes(x = lag, y = irf)) +
+    geom_ribbon(aes(x = lag, ymin = Lower, ymax = Upper), fill = "lightgray", alpha = .3) +
+    geom_line() +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(x = "", y = "", 
+         title = "Orthogonal Impulse Response Functions (rows: response, columns: impulse)") +
+    facet_grid(response ~ impulse, switch = "y") 
+```
+
+
+
+## Impulse-Response Functions (IRF)
+
+```{r ref.label="IRFs", echo = FALSE, fig.height=5.5}
+```
+
+
+
+## Forecast Error Variance Decomposition (FEVD)
+
+- goal: find **fraction of overall fluctuations in $y_i$ that is due to shock $\varepsilon_{j,t}$**
+
+- we obtained that the $h$ step ahead forecast error of the VAR(1) model is
+$$
+    \by_{t+h} - \bmu_{t+h|t} = \bA_1^{h-1} \be_{t+1} + \ldots + \bA_1 \be_{t+h-1} + \be_{t+h}
+$$
+
+- like with IRFs, since $\be_t = \bB_0^{-1} \bvarepsilon_t$ we define $\bPsi_h = \bA_1^h \bB_0^{-1}$ and write
+$$
+    \by_{t+h} - \bmu_{t+h|t} = \bPsi_{h-1} \bvarepsilon_{t+1} + \ldots + \bPsi_1 \bvarepsilon_{t+h-1} + \bPsi_0 \bvarepsilon_{t+h}
+$$
+
+- thus for variable $y_i$ the variance of $h$ step ahead forecast error is given by
+$$
+    \sigma^2_{y_i,h} = var(y_{t+h} - \mu_{t+h|t}) = \sum_{j=1}^k \sigma^2_{\varepsilon_j} \sum_{\tau=0}^{h-1} \Psi_{\tau,ij}^2
+$$
+and the portion of $\sigma^2_{y_i,h}$ that is due to shock $\{\varepsilon_{j,t}\}$ is 
+$$
+   \frac{ \sigma^2_{\varepsilon_j} \sum_{\tau=0}^{h-1} \Psi_{\tau,ij}^2 }
+        { \sum_{j=1}^k \sigma^2_{\varepsilon_j} \sum_{\tau=0}^{h-1} \Psi_{\tau,ij}^2 }
+$$
+
+- this yields a decomposition of forecast error variance, and provides insight which shocks are behind the fluctuations of $y_i$
+
+
+
+## Forecast Error Variance Decomposition (FEVD)
+
+\vspace*{0.25cm}
+
+```{r}
+var1_fevd <- fevd(var1, n.ahead = 40)
+```
+
+\smallskip
+
+\normalsize
+decomposition for $\Delta \log p_H^{LA}$
+```{r}
+var1_fevd[["LA"]][c(1,4,8,40),]
+```
+
+\vspace*{-0.2cm}
+\normalsize
+thus at 1 quarter horizon fluctuations are *entirely* due to $\varepsilon_{LA}$, and  at 40 quarters horizon (i.e. 10 years) more than 99% are due to $\varepsilon_{LA}$ and less than 1% due to $\varepsilon_{RI}$
+
+\medskip
+
+decomposition for $\Delta \log p_H^{RI}$
+```{r}
+var1_fevd[["RI"]][c(1,4,8,40),]
+```
+
+\vspace*{-0.2cm}
+\normalsize
+thus at 1 quarter horizon fluctuations are about half and half due to $\varepsilon_{LA}$ and $\varepsilon_{LA}$; at 40 quarters horizon about 80% are due to $\varepsilon_{LA}$ and 20% due to $\varepsilon_{RI}$
+
+
+
+## Forecast Error Variance Decomposition (FEVD)
+
+```{r eval=FALSE}
+plot(var1_fevd)
+```
+```{r echo=FALSE, fig.height=5.5}
+par(mar=c(4,4,2,0))
+plot(var1_fevd, addbars = 6)
+```
+
+
+
+## Forecast Error Variance Decomposition (FEVD)
+
+```{r FEVDs, eval=FALSE}
+# arrange FEVD data into a tibble to be used with ggplot
+var1_fevd_tbl <-
+    var1_fevd %>%
+    modify_depth(1, as.tibble) %>%
+    map_df(bind_rows, .id = "variable") %>%
+    gather(shock, value, -variable) %>%
+    group_by(shock, variable) %>%
+    mutate(horizon = row_number()) %>%
+    ungroup()
+
+# plot FEVD using ggplot
+ggplot(data = var1_fevd_tbl, aes(x = horizon, y = value, fill = shock)) +
+    geom_col(position = position_stack(reverse = TRUE)) +
+    scale_fill_manual(values = c("gray70","gray40")) +
+    labs(x = "horizon", y = "fraction of overall variance", 
+         title = "Forecast Error Variance Decomposition") +
+    facet_wrap(~variable, ncol = 1)
+```
+
+
+
+## Forecast Error Variance Decomposition (FEVD)
+
+```{r ref.label="FEVDs", echo = FALSE, fig.height=5.5}
+```
+
+
+## Reduced Form Errors vs Structural Shocks
+
+note that
+
+- IRFs trace out the response of $\by_t$ to structural shocks $\bvarepsilon_t$, not reduced form errors $\be_t$
+
+- FEVD gives the fraction of variance of $\by_t$ caused by different structural shocks $\bvarepsilon_t$, not reduced form errors $\be_t$
+
+- since $\bvarepsilon_t = \bB_0 \be_t$ to construct the IRFs and FEVD for a VAR$(p)$ model we need to know $\bB_0$, in addition to $\bA_1,\ldots,\bA_p$ 
+
+
+
+## Identification of Structural Shocks
+
+Q: Is it possible to recover $\bc_0$, $\{\bB_i\}_{i=0}^p$ and $\bSigma_\varepsilon$ from $\bc$, $\{\bA_i\}_{i=1}^p$ and $\bSigma_e$?
+
+A: Only if we are willing to impose additional restrictions.
+
+
+
+## Identification of Structural Shocks
+
+**Example:** bivariate VAR(1)
+
+- reduced form VAR(1) yields estimates of 9 parameters in $\bc$, $\bA_1$, $\bSigma_e$ 
+
+\vspace{-0.25cm}
+\small
+$$
+\begin{pmatrix}
+    y_{1,t} \\
+    y_{2,t} 
+\end{pmatrix}
+=
+\begin{pmatrix}
+    c_1 \\
+    c_2
+\end{pmatrix}
++
+\begin{pmatrix}
+    a_{1,11} & a_{1,12} \\
+    a_{1,21} & a_{1,22}
+\end{pmatrix}
+\begin{pmatrix}
+    y_{1,t-1} \\
+    y_{2,t-1} 
+\end{pmatrix}
++
+\begin{pmatrix}
+    e_{1,t} \\
+    e_{2,t}
+\end{pmatrix}
+\quad
+\bSigma_e =
+\begin{pmatrix}
+    \sigma_1^2 & \sigma_{12} \\
+    \sigma_{12} & \sigma_2^2
+\end{pmatrix}
+$$
+
+\normalsize
+
+- we are trying to uncover $\bc_0$, $\bB_0$, $\bB_1$, $\bSigma_\varepsilon$ which contain 10 unknown values  
+
+\vspace{-0.25cm}
+\small
+$$
+\begin{pmatrix}
+    1 & b_{0,12} \\
+    b_{0,21} & 1
+\end{pmatrix}
+\begin{pmatrix}
+    y_{1,t} \\
+    y_{2,t} 
+\end{pmatrix}
+=
+\begin{pmatrix}
+    c_{0,1} \\
+    c_{0,2} 
+\end{pmatrix}
++
+\begin{pmatrix}
+    b_{1,11} & b_{1,12} \\
+    b_{1,21} & b_{1,22}
+\end{pmatrix}
+\begin{pmatrix}
+    y_{1,t-1} \\
+    y_{2,t-1} 
+\end{pmatrix}
++
+\begin{pmatrix}
+    \varepsilon_{1,t} \\
+    \varepsilon_{2,t}
+\end{pmatrix}
+\quad
+\bSigma_\epsilon =
+\begin{pmatrix}
+    \sigma_{\varepsilon_1}^2 & 0 \\
+    0 & \sigma_{\varepsilon_2}^2
+\end{pmatrix}
+$$
+
+- one additional restriction on parameters thus needs to be *imposed* in the VAR(1)
+
+- one possible way to do this is the **Choleski decomposition**
+    - impose $b_{0,12}=0$ so that $y_{1,t}$ has contemporaneous effect on $y_{2,t}$, but $y_{2,t}$ does not have a contemporaneous effect on $y_{1,t}$  
+    - this also means that both $\varepsilon_{1,t}$ and $\varepsilon_{2,t}$ have a contemporaneous effect on $y_{2,t}$, but only $\varepsilon_{1,t}$ has an effect on $y_{1,t}$  
+    - this is how `vars` package constructs IRFs and FEVD shown on previous slides
+
+
+
+## Identification of Structural Shocks
+
+general case, a VAR$(p)$ model with $k$ variables
+
+- reduced form has $k+pk^2 + k(k+1)/2$ parameters
+
+- structural form has $k+(p+1)k^2 + k$ parameters
+
+- identification thus requires $k(k-1)/2$ additional restrictions
+
+- Choleski decomposition: set elements of $\bB_0$ above main diagonal equal zero 
+
+- ordering of variables in the VAR$(p)$ model thus matters:   
+  $y_{i,t}$ is only affected by shocks $\varepsilon_{1,t},\ldots,\varepsilon_{i,t}$, remaining shocks $\varepsilon_{i+1,t},\ldots,\varepsilon_{k,t}$ have no contemporaneous effect on $y_{i,t}$ and will only affect $y_{i,t'}$ for $t'>t$ indirectly through their effect on $y_{i+1,t},\ldots,y_{k,t}$

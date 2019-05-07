@@ -1,0 +1,53 @@
+---
+title: '**Homework 5**'
+subtitle: |
+  | Eco 5316 Time Series Econometrics
+  | Spring 2019
+  | Due: Saturday, March 8, 11.55pm
+urlcolor: magenta
+linkcolor: magenta
+output:
+  pdf_document: default
+---
+
+\renewcommand{\baselinestretch}{1.15} \selectfont
+
+## **Problem 1**
+
+<!--
+Submit your solution in the form a short report, prepared using R Markdown. Compile the report into a pdf and upload it to your repo together with the source Rmd file.
+-->
+
+Submit your solution for this problem to your student folder in the `TTU-ECO5316` github repo under the file name `yourlastname_eco5316_hw5q1.r`. Create a pull request to add it to the `students` branch of the `jduras\TTU-ECO5316` repo.
+
+(a) Obtain monthly data for Total Nonfarm Payroll Employment, Not Seasonally Adjusted, available on FRED under code [`PAYNSA`](https://fred.stlouisfed.org/series/PAYNSA). Import the 1975M1-2018M12 sample using `tq_get`.
+
+(b) Construct the following transformed time series
+    1. change in Total Nonfarm Payroll Employment $\Delta E_t = E_t - E_{t-1}$
+    2. log of Total Nonfarm Payroll Employment $\log E_t$
+    3. log change in Total Nonfarm Payroll Employment $\Delta \log E_t = \log E_t - \log E_{t-1}$
+    4. 12 month log change  in Total Nonfarm Payroll Employment $\Delta_{12} \log E_t = \log E_t - \log E_{t-12}$
+    5. twice differenced Total Nonfarm Payroll Employment $\Delta \Delta_{12} \log E_t = \Delta_{12} \log E_t - \Delta_{12} \log E_{t-1}$. 
+
+    Plot the original and the transformed time series. Comment on their trends, volatility, seasonal patterns.
+
+(c) Use `ggseasonplot` to create seasonal plots for $\Delta E_t$ and $\Delta \log E_t$. Comment on the seasonal patterns.
+
+(d) Plot ACF and PACF for $\log E_t, \Delta \log E_t, \Delta_{12} \log E_t, \Delta \Delta_{12} \log E_t$. Comment on their shape.
+
+(e) Perform the ADF and KPSS tests on $\log E_t, \Delta_{12} \log E_t, \Delta \Delta_{12} \log E_t$. Summarize the results.
+
+(f) Split the sample into two parts: estimation sample from 1975M1 to 2014M12, and prediction sample from 2015M1 to 2018M12. Use ACF and PACF from (c) to identify and estimate a suitable model for $\Delta \Delta_{12} \log E_t$ using `Arima`. Check the estimated model for adequacy - diagnose residuals using `ggtsdiag`. 
+
+(g) Use `auto.arima` to find the best model for $\log E_t$. Check the estimated model for adequacy - diagnose residuals using `ggtsdiag`. 
+
+(h) Use `slide` from `tsibble` package to create a rolling scheme sequence of 1 period ahead forecasts for the prediction subsample 2015M1-2018M12 using the same model specification as in (g). 
+
+(i) Plot the forecast for $E_t$ from (h) together with its confidence intervals and the actual data for the period 2008M1-2018M12.
+
+(j) Use the forecast for $E_t$ from (h) to construct the forecast for $\Delta E_t$, plot it together with the actual data.
+
+(k) Construct and plot the forecast errors for $E_t$ and for $\Delta E_t$.
+
+
+
