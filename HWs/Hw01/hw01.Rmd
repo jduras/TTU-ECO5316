@@ -48,7 +48,7 @@ If you also want a portable version on your USB flash drive that you can use on 
 
 ## **Problem 3**
 
-Setup Github and GitKraken:
+Setup GitHub and GitKraken:
 
 - create a [GitHub](https://github.com) account
 - download GitKraken, a Git GUI client from [www.gitkraken.com/git-client](https://www.gitkraken.com/git-client)
