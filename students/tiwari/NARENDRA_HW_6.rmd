@@ -64,7 +64,12 @@ varp.r
 summary(varp.r)
 varp.r$restrictions
 Acoef(varp.r)
-
+ For IRFs, from "Orthogonal Impulse Response from dlrGDP" on dlrsp500, it shows the 
+shock from the dlrGDP doesn't significantly affect dlrGDP.  On the other hand,  "Orthogonal Impulse Response from dlrsp500" significantly 
+affect on dlrGDP as the 95% confidence interval is far away from 0. Hence, there is a positive significant effect of a shock for dlrsp500
+ on dlrGDP. Moreover, the positive effect last until somewhere around 4 or 5 quarters that is for about 1 year. Therefore, it doesn't last 
+ for quite a long time. For FEVD, the result shows that the shock in dlrGDP does not impact dlrsp500, the shock in dlrsp500 will impact 
+ dlrGDP for 40%.
 #d
 
 causality(varp, cause = "dlrGDP")
@@ -117,6 +122,13 @@ varp.fevd[[1]][c(1,4,8,15),]
 varp.fevd[[2]][c(1,4,8,15),]
 plot(varp.fevd)
 plot(varp.fevd, addbars=8)
+
+Comments:  From the result, one can easily observe tha tthe forecast for real GDP growth rate in 2019 Q1 is 2.449631, 
+the most recent of  GDP estimate of 2019Q1 in "Federal Bank of New York Nowcast" is about 1.43.  
+The GDP estimate of 2019Q1 in "GDPNow Federal Bank of Atlanta forecast" is 2.7, and the average figure in
+ Wall Street Journal Economic Forecasting Survey is 1.5, the minimum value is 0.5 and the maximum value is 2.94. Hence, 
+ the estimated result is in the range of the Wall Street Journal forecasting results, implying the more optimistic result 
+ than New York forecast.But it is a bit less optimistic than the Atlanta forecast. 
 
 ```
 
