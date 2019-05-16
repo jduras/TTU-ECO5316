@@ -1,0 +1,134 @@
+---
+title: "Homework 8"
+author: "Sawssan Boufous"
+date: "May 12, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(Quandl)
+library(urca)
+library(vars)
+library(forecast)
+library(zoo)
+library(readr)
+```
+
+```{r}
+
+
+oil <-Quandl("FRED/MCOILWTICO", type="zoo")
+gas <-Quandl("FRED/GASREGCOVM",type="zoo")
+oil
+gas
+## (a) Create Single Time Series:
+
+loil <- log(oil)
+lgas <- log(gas)
+loil <- window(loil, start=1995+0, end=2017+3/12)
+lgas <- window(lgas, start=1995+0, end=2017+3/12)
+par(mfrow=c(1,1))
+plot(loil, type='l', main="Crude Oil Prices vs. Regular Conventional Gas Prices", col="green", ylim=c(-1, 5))
+lines(lgas, col="pink")  
+
+```
+
+```{r}
+
+## (b) Perform Unit Root Tests:
+
+loil.urers1 <- ur.ers(loil, type="P-test", model="trend")
+summary(loil.urers1)
+
+lgas.urers2 <- ur.ers(lgas, type="P-test", model="trend")
+summary(lgas.urers2)
+
+## Since 9.6438 (oil) and 8.0956 (gas) > 3.96, 5.62, 6.89, we reject the null hypothesis that suppose that the time series has a unit root.
+## Therefore, the original data doesn't contain a unit root.
+
+
+## First Differences of data:
+
+doil <- diff(loil)
+dgas <- diff(lgas)
+
+doil.urers1 <- ur.ers(doil, type="P-test", model="trend")
+summary(doil.urers1)
+
+
+dgas.urers2 <- ur.ers(dgas, type="P-test", model="trend")
+summary(dgas.urers2)
+
+## Since 0.8329(oil) and 0.4831(gas) < 3.96, 5.62, 6.89, we fail to reject the null hypothesis,
+## and we can state that Crude Oil Prices and Regular Conventional Gas Price are I(1).
+
+par(mfrow=c(1,1))
+plot(doil, type='l', main="Log Differences of Crude Oil Prices vs. Log Differences of Gas Prices", col="green", ylim=c(-0.4, 0.4))
+lines(dgas, col="pink")
+```
+
+```{r}
+## (c) & (d) Determining the Number of Lags:
+
+y <- cbind(loil, lgas)
+colnames(y) <- c("log.wti","log.gas")
+y <- na.trim(y)
+y.VAR.IC <- VARselect(y, type="const")
+
+nlags <- y.VAR.IC$selection["SC(n)"]
+nlags
+
+y <- window(y, start=1995+0, end=2010+11/12)
+y.CA <- ca.jo(y, ecdet="const", type="trace", K=nlags, spec="transitory")
+summary(y.CA)
+
+y.CA <- ca.jo(y, ecdet="const", type="eigen", K=nlags, spec="transitory")
+summary(y.CA)
+
+## We reject the null hypothesis and we can say that oil and gas are cointegrated. 
+
+lttest(y.CA, r=1)
+
+## The test suggests case 2(restricted constant),
+## while the plots from (a) suggest Case 4(restricted trend).
+```
+
+
+```{r}
+## (e) Estimate a Bivariate VEC Model:
+
+y.VEC <- cajorls(y.CA, r=1)
+y.VEC
+```
+
+```{r}
+
+## (f) Statistical Significance of alpha1 and alpha2 in the Estimated VEC Model:
+
+summary(y.VEC$rlm)
+
+## the results show that alpha1 is not significant and greater than zero  while alpha 2 is significant and is also positive. 
+
+## Hence, whenever there is a disruption:
+## the signs of the adjustment parameters are consistent with the error correction mechanism.
+```
+
+```{r}
+## (g) Test the VEC model with a restriction alpha2 = 0:
+
+rest.alpha <- matrix(c(1,0), c(2,1))
+y.CA.ralpha <- alrtest(y.CA, A=rest.alpha, r=1)
+summary(y.CA.ralpha)
+```
+
+```{r}
+## (h) The Intuition for Imposing the Restriction in (f):
+
+## The restriction alpha 2 = 0 means that the adjustment occurs by y1(oil price) only which
+## means  that gas prices don't have an effect on oil prices.
+
