@@ -1,0 +1,128 @@
+---
+title: "HW8"
+author: "Mohammed Alsubaie"
+date: "5/17/2019"
+output: html_document
+---
+
+```{r}
+
+
+library(Quandl)
+library(vars)
+library(urca)
+library(gdata)
+library(stargazer)
+library(forecast)
+
+Quandl.api_key('CEFP3eWxEJwr_uUP9a2D')
+COP.Data <- Quandl("FRED/MCOILWTICO", type="zoo") 
+RCGP.Data <- Quandl("FRED/GASREGCOVM", type="zoo")
+```
+
+# Part A 
+
+```{r}
+
+COP=log(COP.Data)
+RCGP=log(RCGP.Data)
+Oil <- window(COP, start=1995+0, end=2017+4/12)
+Gas <- window(RCGP, start=1995+0, end=2017+4/12)
+par(mfrow=c(1,1))
+
+
+plot(Oil, type='l', main="Time Series of the Log of Oil and 
+     Gas Prices from 1995 to 2017",col="red", ylim=c(-2, 5),
+     xlab= "Year", ylab="log of Price", colour='variable' )
+lines(Gas, col="blue")
+```
+
+# Part B
+
+```{r}
+
+logOil.test <- ur.ers(Oil, type="P-test", model="trend")
+summary(logOil.test)
+logGas.test <- ur.ers(Gas, type="P-test", model="trend")
+summary(logGas.test)
+
+
+diffoil <- diff(Oil)
+diffgas <- diff(Gas)
+diffoil.test <- ur.ers(diffoil, type="P-test", model="trend")
+summary(diffoil.test)
+
+diffgas.test <- ur.ers(diffgas, type="P-test", model="trend")
+summary(diffgas.test)
+
+par(mfrow=c(1,1))
+plot(diffoil, type='l', main="Difference of the log of Oil and Gas", col="blue",
+     ylim=c(-0.6, 0.6))
+lines(diffgas, col="blue")
+
+```
+
+# Part C
+
+```{r}
+
+
+c <- cbind(Oil, Gas)
+colnames(c) <- c("log.oil","log.gas")
+c <- na.trim(c)
+VAR.IC <- VARselect(c, type="const")
+numlags <- VAR.IC$selection["SC(n)"]
+numlags
+
+c <- window(c, start=1995+0, end=2017+12/12)
+c.CA <- ca.jo(c, ecdet="const", type="trace", K=numlags, spec="transitory")
+summary(c.CA)
+
+
+c.CA1 <- ca.jo(c, ecdet="const", type="eigen", K=numlags, spec="transitory")
+summary(c.CA1)
+
+```
+
+# Part D
+
+```{r}
+
+restricted <- matrix(c(1,0), c(2,1))
+
+CA.restricted <- alrtest(c.CA1, A = restricted, r = 1)
+VEC.restricted <- cajorls(CA.restricted, r = 1)
+summary(VEC.restricted)
+```
+
+# Part E
+
+```{r}
+
+VEC <- cajorls(c.CA, r=1)
+VEC
+```
+
+# Part F 
+
+```{r}
+
+summary(VEC$rlm)
+```
+
+# Part G 
+
+
+```{r}
+
+rest.alpha <- matrix(c(1,0), c(2,1))
+CA.rest.alpha <- alrtest(c.CA, A=rest.alpha, r=1)
+summary(CA.rest.alpha)
+```
+
+# Part H 
+
+```{r}
+
+summary(VEC$rlm)
+
