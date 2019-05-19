@@ -1,0 +1,176 @@
+---
+title: "HW 8"
+author: "Shijia Gao"
+date: "5/18/2019"
+output: html_document
+---
+```{r} 
+ 
+library(vars) 
+library(magrittr) 
+library(tidyquant) 
+library(timetk) 
+library(egg) 
+library(stargazer) 
+library(grid) 
+library(gridExtra) 
+library(plotly) 
+library(urca) 
+library(ggplot2)
+library(scales)
+library(ggfortify)
+ 
+theme_set(theme_bw() +  
+          theme(strip.text.x = element_text(hjust = 0), 
+                strip.text.y = element_text(hjust = 1), 
+                strip.background = element_blank())) 
+``` 
+
+## Problem 1
+
+Obtain monthly time series for Crude Oil Prices: West Texas Intermediate (WTI), MCOILWTICO, and the
+monthly time series for US Regular Conventional Gas Price, GASREGCOVM.
+
+(a) Create a single time series plot with two log prices log pGAS and log pOIL for the sample 1995M1-2017M4.
+
+```{r}
+energy_tbl1 <- 
+    tq_get(c("MCOILWTICO"), 
+           get = "economic.data", from = "1995-01-01", to = "2017-12-31") %>% 
+          rename(poil=price) %>% 
+    mutate(yearmon = as.yearmon(date), 
+           logpoil=log(poil),
+           dloil= log(poil)-lag(log(poil))) %>% 
+    ungroup() %>% 
+    select(date, yearmon, logpoil, dloil)
+
+energy_tbl2 <- 
+    tq_get(c("GASREGCOVM"), 
+           get = "economic.data", from = "1995-01-01", to = "2017-12-31") %>% 
+    rename(pgas=price) %>% 
+    mutate(yearmon = as.yearmon(date), 
+           logpgas=log(pgas),
+            dlgas= log(pgas)-lag(log(pgas))) %>% 
+    ungroup() %>% 
+    select(date, yearmon, logpgas, dlgas)
+
+energy_tbl <- inner_join(energy_tbl1  ,energy_tbl2 ,by = "yearmon")
+energy_tbl 
+
+ss <- subset(energy_tbl, yearmon <= 2017.250)
+g1<-ggplot() +
+  geom_line(data = ss, aes(yearmon, logpoil),colour="black",size=1) +
+  geom_line(data = ss, aes(yearmon, logpgas), colour = 'red', size = 1)
+g1
+
+g2<-ggplot() +
+  geom_line(data = ss, aes(yearmon, dloil),colour="black",size=1) +
+  geom_line(data = ss, aes(yearmon, dlgas), colour = 'red', size = 1)
+g2
+
+```
+
+(b) Perform unit root tests to verify that log pGASt and log pOILt are I(1).
+```{r}
+
+
+energy.ts1 <- 
+    energy_tbl%>% 
+    dplyr::select(yearmon, logpgas,logpoil) %>% 
+    drop_na() %>% 
+    tk_ts(select = c("logpoil", "logpgas"),start = .$yearmon[1],frequency = 12) 
+energy.ts2 <- 
+    energy_tbl%>% 
+    dplyr::select(yearmon, dloil, dlgas) %>% 
+    drop_na() %>% 
+    tk_ts(select = c("dloil","dlgas"),start = .$yearmon[1],frequency = 12) 
+##unit root test for the log term 
+ tk_ts(energy.ts1, select= c("logpoil", "logpgas")) %>% 
+   ur.ers(type="DF-GLS", model="trend") %>% summary() 
+
+## unit root test for the first difference  
+ tk_ts(energy.ts2,select= c("dloil", "dlgas")) %>%  
+   ur.ers(type="DF-GLS", model="trend") %>% summary() 
+```
+
+Comments: 1)From the ERS unit root test of log term, we fail to reject the null hypothesis that there is unit root.  
+          2)From the ERS unit root test of the first difference, we have to reject the null hypothesis that there is unit root, namely there is no unit root but trend stationary.  
+          so we need to use the first difference data.  
+
+(c) Determine the number of lags to include in cointegration analysis using Schwarz information criterion.
+Run the Johansen¡¯s trace and maximum eigenvalue cointegration tests for (log pGAS , log pOIL ) using
+the sample 1995M1-2017M12. Use time series plots from (a) as a guide to determine the specification
+of the deterministic components in the cointegration test (i.e. whether to use Case 2, Case 3, of Case 4
+cointegration test).
+
+```{r}
+# determine the number of lags
+varp <- VAR(energy.ts1, ic = "SC", lag.max = 24, type = "const")   
+varp  
+summary(varp)
+
+# Trace test and  Eigenvalue Test for Case4
+  ## trace test
+energy_CA1 <- ca.jo(energy.ts1, ecdet = "trend", type = "trace", K = 3, spec = "transitory", season = 12)   
+summary(energy_CA1 )
+  ##Eigenvalue Test
+energy_CA2 <- ca.jo(energy.ts1, ecdet ="trend", type = "eigen",K = 3, spec = "transitory", season = 12)
+summary(energy_CA2)  
+
+# test for "trend"
+lttest(energy_CA2, r=1)
+
+# Trace test and  Eigenvalue Test for Case3
+     ## trace test
+energy_CA1 <- ca.jo(energy.ts1, ecdet = "none", type = "trace", K = 3, spec = "transitory", season = 12)   
+summary(energy_CA1 )
+  ##Eigenvalue Test
+energy_CA2 <- ca.jo(energy.ts1, ecdet ="none", type = "eigen",K = 3, spec = "transitory", season = 12)
+summary(energy_CA2)  
+
+```
+Comments:  (1) According to Schwarz information criterion, we can select the number of lags as 3. 
+           (2) From the time series plots from (a),  it looks like Case 4 because of the similar trend for both logpoil and logpgas. 
+           (3) The value of the trace test statistic 35.07 is greater than all the critical values for H0:r=0. Looking at the eigen  test, the test statistic  29.91 is greater than the critical value for H0:r=0 at 5% significance level, while both test statistics are smaller than the critical value for H0:r<=1, so we reject r=0 but fail to reject r<=1, therefore r=1, it suggests that the data of Gas and Oil have one cointegrating relationship.
+           (4) but from lltest, we fail to reject the null hypothesis that there is no linear trend, then reconsidering the time series plots from (a), then this is case 3: unrestricted constant
+           (5) For Case3, we can still get r=1. 
+           
+           
+(d) Perform the test for the presence of a restricted constant rather than unrestricted constant in the model.
+```{r}
+  ## trace test
+energy_CA3 <- ca.jo(energy.ts1, ecdet = "const", type = "trace", K = 3, spec = "transitory", season = 12)   
+summary(energy_CA3 )
+  ##Eigenvalue Test
+energy_CA4 <- ca.jo(energy.ts1, ecdet ="const", type = "eigen",K = 3, spec = "transitory", season = 12)
+summary(energy_CA4)  
+```
+Comments: In the case2--restricted constant, the value of the trace test statistic 26.97 is greater than all the critical values for H0:r=0. Looking at the eigen  test, the test statistic 23.59 is greater than all the critical values for H0:r=0, while both test statistics are smaller than the critical value for H0:r<=1, so we reject r=0 but fail to reject r<=1, therefore r=1, it suggests that the data of Gas and Oil have one cointegrating relationship.
+
+
+(e) Use the 1995M1-2017M12 sample to estimate a bivariate VEC model for (log pGAS , log pOIL ).
+```{r}
+energy_VEC <- cajorls(energy_CA4, r = 1)
+energy_VEC
+```
+Comments: From the above result, we can get that when include a constant in the cointegrating relationship, conintegrating vecor is estimated as beta=(1, -1.469517,  -2.777754)', adjustment parameters are estimated as Alpha=( -0.0465797,   0.0928342)'.
+
+(f) Are the adjustment parameters Alpha1 and Alpha2 in the estimated VEC model statistically significant? Are their signs consistent with error correction mechanism that moves the system back to the long run equilibrium, whenever there is a disruption and z(t???1) is not equal to 0?
+```{r}
+summary(energy_VEC$rlm)  
+```
+Comments: alpha2 is statistically significant at 0.001 level but alpha1 is not. Since alpha1 is negative, while alpha2 is positive,  so the signs could help the system back to the long run equilibrium when there is a disruption and z(t???1) is not equal to 0.
+
+
+(g) Test the restriction alpha2 = 0 using the likelihood ratio test.
+```{r}
+rest_alpha <- matrix(c(1,0), c(2,1))
+energy_ca_ralpha <- alrtest(energy_CA4, A = rest_alpha, r = 1)
+summary(energy_ca_ralpha)
+```
+Comments: From the likelihood ratio test, we can get the p-value is 0.01, so we reject the null hypothesis of the restriction: alpha2=0, which is consistent with the former conclusion that alpha2 is significant. 
+
+
+(h) What is the intuition for imposing the restriction in (f), what does it imply for the response of log pGAS and log pOIL to a disruption such that z(t???1) < 0?
+   
+   Comments: Since alpha1<0 and ahpha2>0, then when z(t???1) < 0, logpgas would decrease and logpoil would increase, the error correction mechanism could move the system back to the long run equilibrium.
