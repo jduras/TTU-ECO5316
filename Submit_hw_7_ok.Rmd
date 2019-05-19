@@ -1,0 +1,140 @@
+---
+title: "HW_7"
+author: "Narendra Raj Tiwari"
+date: "May 16, 2019"
+output: html_document
+---
+
+
+```{r}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(Quandl)
+library(urca)
+library(vars)
+library(devtools)
+```
+
+a) Getting Data
+```{r}
+y <- tq_get(("OPHNFB"), get = "economic.data",
+           from  = "1947-01-01", to = "2017-12-31")
+
+z <- tq_get(("HOANBS"), get = "economic.data",
+           from  = "1947-01-01", to = "2017-12-31")
+```
+
+
+# convert data into tibble
+```{r}
+y_tbl <-
+    y %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+z_tbl<-
+  z %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+```
+
+# convert data into ts
+```{r}
+y_ts <-
+    y_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+
+
+z_ts <-
+  z_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+```
+
+b) finding differences#
+```{r}
+log.y1 <- log(y_ts)
+log.y2 <- log(z_ts)
+
+first.diff.y1 <- diff( log(y_ts), differences = 1)
+first.diff.y2 <- diff(log(z_ts), differences = 1)
+```
+
+checking unit root using ERS test 
+```{r}
+log.y1 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+first.diff.y1 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+log.y2 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+first.diff.y2  %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+```
+
+#In first case, we reject the null hypothesis.
+#In the second case, we fail to reject the null hypothesis.
+#In the third case, we reject the null hypothesis at 1% and 5%.
+#In the fourth case, we fail to reject the null hypothesis.
+
+#c
+```{r}
+x <- cbind(first.diff.y1,first.diff.y2)
+var <- VAR(x, ic = "AIC", lag.max = 8, type = "const")
+var
+summary(var)
+```
+
+#d)
+```{r}
+svar <- BQ(var)
+svar
+summary(svar)
+```
+
+Report and interpretation of the contemporaneous impact and the long run impact matrices#
+From the contemporaneous impact matrix, one can easily observe that one standard deviation technologgy shoock 
+increases real output per hour 0.0065%.one standard deviation non-technology shock lowers output per hour 
+on impact by -0.0032%
+Again from the long run impact matrices, a single positive standard deviation technology shock on output per hour
+increases by 7.1%, while the non-technology shock is -0.0024.
+
+#e)
+```{r}
+myIRF.c <- irf(svar, n.head = 12, ci = .9, cumulative = TRUE)
+summary(svar)
+```
+
+From the contemporaneous impact matrix, one can easily observe that one standard deviation technologgy stock increases real output per hour 0.0065%.While, one standard deviation non-technology shock lowers output per hour on impact by -0.0032%
+Also,from the long run impact matrix, a single positive standard deviation technology shock on output per hour  increases it by 0.71% , and non-technology shock decreases output per hour by .24%. 
+
+
+
+#f)
+
+```{r, fig.width=10, fig.height=8}
+par(mfrow = c(2,2))
+plot(myIRF.c, plot.type = "single")
+```
+
+#g)
+
+
+The results in this analysis and Gali(1999) are quite similar though the value and the timing peak are a bit different.
+
+#h)
+```{r, fig.width=10, fig.height=8}
+plot( fevd(svar, n.ahead=40) ,addbars=10 )
+```
+Interpretation:
+The result shows that larger variation is explained by the internal shocks and 
+some part of it is explained by the external shocks.
+Moreover, the results holds true for both the long-run and the short-run.
