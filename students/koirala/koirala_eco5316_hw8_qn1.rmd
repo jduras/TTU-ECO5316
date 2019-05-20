@@ -1,0 +1,163 @@
+---
+title: "Homework 8"
+author: "Bikal Koirala"
+date: "May 15, 2019"
+output: pdf_document
+---
+
+```{r}
+
+library(Quandl)
+library(urca)
+library(vars)
+library(forecast)
+library(zoo)
+library(readr)
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+
+library(devtools)
+```
+
+
+
+
+
+
+
+
+
+
+(a)
+```{r}
+
+MCOILWTICO <- tq_get(("MCOILWTICO"), get = "economic.data",
+           from  = "1995-01-01", to = "2017-04-30")
+
+GASREGCOVM <- tq_get(("GASREGCOVM"), get = "economic.data",
+           from  = "1995-01-01", to = "2017-04-30")
+
+
+
+# convert data into tibble
+MCOILWTICO_tbl <-
+    MCOILWTICO %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q")) %>%
+  dplyr::select(c(yearq, price))
+
+MCOILWTICO_ts <-
+    MCOILWTICO_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 12)
+
+GASREGCOVM_tbl <-
+   GASREGCOVM %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q")) %>%
+  dplyr::select(c(yearq, price))
+
+
+GASREGCOVM_ts <-
+    GASREGCOVM_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 12)
+
+logoil <- log(MCOILWTICO_ts)
+
+loggas <- log(GASREGCOVM_ts)
+
+
+
+ts.plot(logoil, loggas, gpars= list(col=c("red", "green"))) 
+
+
+
+
+```
+
+```{r}
+
+## (b) Unit Root Tests:
+
+first.diff.y1 <- diff((logoil), differences = 1)
+first.diff.y2 <- diff((loggas), differences = 1)
+
+logoil%>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+first.diff.y1 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+loggas %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+first.diff.y2 %>% ur.ers(type = "P-test", lag.max = 8, model = "trend") %>% summary()
+
+```
+
+In the first test (log transformed of crude oil price of west Texas Intermediate) we accept the null hypothesis at all level. This means that the log transformed data does  presence unit root.
+In the second test regarding first difference of y1 ( crude oil price of west Texas Intermediat) we reject null hypothesis at 1 percent. Therfore, there is no presence of unit root.
+In the third test (log transformed of conventional gas price of US) we accept the null hypothesis at all level. This means that the log transformed data does  presence unit root.
+In the fourth test regarding first difference of y2 (conventional gas price of US) we reject null hypothesis at 1 percent. Therfore, there is no presence of unit root.
+
+
+```{r}
+## (c) Determining the Number of Lags:
+
+y <- cbind(logoil, loggas)
+colnames(y) <- c("log.wti","log.gas")
+y <- na.trim(y)
+y.VAR.IC <- VARselect(y, type="const")
+
+nlags <- y.VAR.IC$selection["SC(n)"]
+nlags
+
+y <- window(y, start=1995+0, end=2010+11/12)
+y.CA <- ca.jo(y, ecdet="const", type="trace", K=nlags, spec="transitory")
+summary(y.CA)
+
+y.CA <- ca.jo(y, ecdet="const", type="eigen", K=nlags, spec="transitory")
+summary(y.CA)
+
+## We reject the null hypothesis. Thus, oil and gas prices are cointegrated.
+
+lttest(y.CA, r=1)
+
+## The test suggests case 2(restricted constant),
+## while the plots from (a) suggest Case 4(restricted trend).
+```
+
+
+```{r}
+## (e) Estimating a Bivariate VEC Model:
+
+y.VEC <- cajorls(y.CA, r=1)
+y.VEC
+```
+
+```{r}
+
+## (f) Statistical Significance of alpha1 and alpha2 in the Estimated VEC Model:
+
+summary(y.VEC$rlm)
+
+## We can see that alpha1 is not significant, but alpaha2 is significant. 
+## We also notice that alpha1  and alpha2 are greater than 0.
+## Hence, whenever there is a disruption:
+## the signs of the adjustment parameters are consistent with the error correction mechanism.
+```
+
+```{r}
+## (g) Reestimating the VEC model with a restriction alpha2 = 0:
+
+rest.alpha <- matrix(c(1,0), c(2,1))
+y.CA.ralpha <- alrtest(y.CA, A=rest.alpha, r=1)
+summary(y.CA.ralpha)
+```
+
+
+## (h) The Intuition for Imposing the Restriction in (f):
+
+## The restriction alpha2=0 means that the adjustment occurs by y1(oil price) only.
+## i.e. gas prices cannot affect oil prices.
