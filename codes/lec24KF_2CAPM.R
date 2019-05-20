@@ -32,14 +32,14 @@ abline(GM_CAPM_OLS)
 
 
 # get number of observatons
-T <- nrow(er_ts)
+tobs <- nrow(er_ts)
 
 # construct system matrices for state-space model - CAPM with time variable alpha and betta
-Zt <- rbind(rep(1,T), er_ts[,"SP500"]) %>% array(dim = c(1, 2, T))
+Zt <- rbind(rep(1, tobs), er_ts[, "SP500"]) %>% array(dim = c(1, 2, tobs))
 Ht <- matrix(NA)
 Tt <- diag(2)
 Rt <- diag(2)
-Qt <- matrix(c(NA,0,0,NA), 2,2)
+Qt <- matrix(c(NA, 0, 0, NA), 2, 2)
 
 # use diffuse prior
 a1 <- matrix(c(0,1), 2, 1)
