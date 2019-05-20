@@ -1,0 +1,240 @@
+--- 
+title: '**Homework 7**' 
+output: 
+  html_document: 
+    df_print: paged 
+  pdf_document: default 
+subtitle: | 
+  | Eco 5316 Time Series Econometrics 
+  | Spring 2019 
+  | Due: Sunday, April 27, 11.55pm 
+linkcolor: magenta 
+urlcolor: magenta 
+--- 
+ 
+```{r} 
+ 
+library(vars) 
+library(magrittr) 
+library(tidyquant) 
+library(timetk) 
+library(egg) 
+library(stargazer) 
+library(grid) 
+library(gridExtra) 
+library(plotly) 
+library(urca) 
+ 
+theme_set(theme_bw() +  
+          theme(strip.text.x = element_text(hjust = 0), 
+                strip.text.y = element_text(hjust = 1), 
+                strip.background = element_blank())) 
+``` 
+ 
+## **Problem 1** 
+ 
+The response of hours worked to different shocks has been studied extensively since Gali (1999), who argued that hours worked show a *decline* in response to a positive technology shock. In this problem, you will replicate some of his results. 
+ 
+(a) First, use `tq_get` to obtain the following two quarterly time series for the period 1947Q1-2017Q4 from FRED: labor productivity, measured as Nonfarm Business Sector: Real Output Per Hour of All Persons [`OPHNFB`](https://fred.stlouisfed.org/series/OPHNFB) and for total hours worked, measured as Nonfarm Business Sector: Hours of All Persons [`HOANBS`](https://fred.stlouisfed.org/series/HOANBS).  
+```{r} 
+labor_tbl1 <- 
+    tq_get(c("OPHNFB", "HOANBS"), 
+           get = "economic.data", from = "1947-01-01", to = "2017-12-31") %>% 
+    mutate(yearq = as.yearqtr(date), 
+           y=price, 
+           ly=log(y), 
+           dly= log(y)-lag(log(y)), 
+           msa = case_when( 
+                            symbol == "OPHNFB"      ~ "Y2H",        # Nonfarm Business Sector: Real Output Per Hour of All Persons 
+                              symbol == "HOANBS"      ~ "H"           # Nonfarm Business Sector: Hours of All Persons 
+                              )) %>% 
+    ungroup() %>% 
+    select(yearq, symbol, dly) %>% 
+    mutate(symbol = str_c("dl", symbol)) %>% 
+    spread(symbol,dly) 
+labor_tbl2 <- 
+    tq_get(c("OPHNFB", "HOANBS"), 
+           get = "economic.data", from = "1947-01-01", to = "2017-12-31") %>% 
+    mutate(yearq = as.yearqtr(date), 
+           y=price, 
+           ly=log(y), 
+           dly= log(y)-lag(log(y)), 
+           msa = case_when( 
+                            symbol == "OPHNFB"      ~ "Y2H",        # Nonfarm Business Sector: Real Output Per Hour of All Persons 
+                              symbol == "HOANBS"      ~ "H"           # Nonfarm Business Sector: Hours of All Persons 
+                              )) %>% 
+    ungroup() %>% 
+    select(yearq, symbol, ly) %>% 
+    mutate(symbol = str_c("l", symbol)) %>% 
+    spread(symbol,ly) 
+labor_tbl <- inner_join(labor_tbl1 ,labor_tbl2 ,by = "yearq") 
+labor_tbl                                                                      
+``` 
+ 
+(b) Test the log of real output per hour $y_{1,t} = \log OPHNFB_t$ and the log of hours $y_{2,t} = \log HOANBS_t$ for the presence of unit root using ERS test. Afterwards apply the ERS unit root test also to the first differences, $\Delta y_{1,t}$ and $\Delta y_{2,t}$. Comment on results. 
+```{r} 
+##unit root test for the log term 
+labor_tbl %>%tk_ts(select= c("lHOANBS", "lOPHNFB")) %>%  
+   ur.ers(type="DF-GLS", model="trend") %>% summary() 
+ 
+## unit root test for the first difference  
+labor_tbl %>%tk_ts(select= c("dlHOANBS", "dlOPHNFB")) %>%  
+   ur.ers(type="DF-GLS", model="trend") %>% summary() 
+``` 
+Comments: 1)From the ERS unit root test of log term, we fail to reject the null hypothesis that there is unit root.  
+          2)From the ERS unit root test of the first difference, we have to reject the null hypothesis that there is unit root, namely there is no unit root but trend stationary.  
+          so we need to use the first difference data.  
+ 
+ 
+(c) Estimate a bivariate reduced form VAR for $\mathbf y_t = (\Delta y_{1,t}, \Delta y_{2,t})'$, using AIC information criteria to select number of lags.  
+```{r} 
+# convert the data into ts 
+labor.ts <- 
+    labor_tbl%>% 
+    dplyr::select(yearq, dlHOANBS,dlOPHNFB) %>% 
+   drop_na() %>% 
+    tk_ts(select = c("dlOPHNFB","dlHOANBS"), start = .$yearq[1], frequency = 4) 
+   
+ 
+# estimate VAR(p) using AIC to select p 
+varp <- VAR(labor.ts, ic = "AIC", lag.max = 8, type = "const")   
+varp  
+summary(varp) 
+``` 
+Comments:  if Use AIC, we can select the number of lags as 3, which is consistent with the VARselect result. 
+ 
+ 
+(d) Suppose that we want to analyze effects of two types of shocks - technology shocks and demand shocks on hours worked. Use Blanchard and Quah approach to obtain an SVAR model where we impose the condition that demand shocks do not affect real output per hour (i.e. labor productivity) $y_{1,t}$ in the long run. 
+(e) Report and interpret the contemporaneous impact and the long run impact matrices for the SVAR. 
+```{r} 
+mod_svar <- BQ(varp) 
+summary(mod_svar)     
+ 
+``` 
+Comments: (1) From the Estimated identified long-run impact matrix, we can get the long run cumulative effect of any demand shock (dlHOANBS) on productivity (dlOPHNFB) is 0, which is consistent with the assumption.  
+          (2)From the contemporaneous impact matrix, we can get a positive standard deviation technology shock increase productivity by 0.006574% and lowers working hours by 0.00319%.a positive standard deviation demand shock increase productivity by 0.004465% and increases working hours by 0.006029%. 
+ 
+   
+  (f) Plot the cumulative IRFs based on the SVAR model from (d) and interpret them - explain what say about the effects of the two types of shocks on labor productivity and hours worked.  
+```{r} 
+# arrange IRF data into a tibble to be used with ggplot 
+# and plot IRFs using ggplot 
+# standard non-cumulative IRFs 
+svar_irf <- irf(mod_svar, n.ahead = 40, ci = .9) 
+# cumulative IRFs 
+svar_irf_c <- irf(mod_svar, n.ahead = 40, ci = .9, cumulative = TRUE) 
+ 
+svar_irf_tbl <- 
+    bind_rows(# standard IRFs for dlHOANBS 
+              svar_irf %>%     ##for cumulative IRFS use svar_irf_c 
+                  keep(names(.) %in% c("irf", "Lower", "Upper")) %>% 
+                  modify_depth(2, as_tibble) %>% 
+                  modify_depth(1, bind_rows, .id = "impulse") %>% 
+                  map_df(bind_rows, .id = "key") %>% 
+                  dplyr::select(-dlOPHNFB) %>% 
+                  gather(response, value, -key, -impulse), 
+              # cumulative IRFs for dlOPHNFB 
+              svar_irf_c %>% 
+                  keep(names(.) %in% c("irf", "Lower", "Upper")) %>% 
+                  modify_depth(2, as_tibble) %>% 
+                  modify_depth(1, bind_rows, .id = "impulse") %>% 
+                  map_df(bind_rows, .id = "key") %>% 
+                  dplyr::select(-dlHOANBS) %>% 
+                  gather(response, value, -key, -impulse)) %>% 
+    group_by(key, impulse, response) %>% 
+    mutate(lag = row_number()) %>% 
+    ungroup() %>% 
+    # change signs for the non-technology shock IRFs so that they show effects of a positive shock, not a negative one 
+    mutate(value = if_else(impulse == "dlHOANBS", -value, value)) %>% 
+    spread(key, value) 
+ 
+g <- svar_irf_tbl %>% 
+    mutate(impulse_label = case_when(impulse == "dlOPHNFB" ~ 1, 
+                                    impulse == "dlHOANBS"     ~ 2) %>% factor(labels = c("technology shock","non-technology shock")), 
+           response_label = case_when(response == "dlOPHNFB" ~ "dly1", 
+                                      response == "dlHOANBS" ~ "dly2") ) %>% 
+    ggplot(aes(x = lag, y = irf)) + 
+        geom_ribbon(aes(x = lag, ymin = Lower, ymax = Upper), fill = "gray50", alpha = .3) + 
+        geom_line() + 
+        geom_hline(yintercept = 0, linetype = "dashed") + 
+        labs(x = "", y = "", title = "SVAR Impulse Response Functions") + 
+        facet_grid(response_label ~ impulse_label, switch = "y", scales = "free_y") 
+g                    
+# plot IRFs using plotly 
+library(plotly) 
+ggplotly(g)   
+``` 
+Comments: From "SVAR Impulse Response functions it shows the shock from the technology shock significantly affect dly1, namely the productivity, and the technology shock's influence on the working hours just last for 3 quarters. The demand shock will significantly affect the productivity and the working hours for about 5 quarters.  
+ 
+ 
+(g) Compare your IRFs with Figure 2 from [Gali (1999) AER](http://myweb.ttu.edu/jduras/files/teaching/eco5316/Gali1999AER.pdf). 
+Comments: My IRFs is roughly consistent with the Figure 2 from Gali.  
+ 
+ 
+(h) Construct the FEVD for the SVAR model from (d). How much of the overall fluctuations in $\Delta y_{1,t}$ and $\Delta y_{2,t}$ is explained in the short run by the two shocks? How about in the long run? 
+```{r} 
+#### FEVD #### 
+ 
+# Short run 
+par(mar = c(4,5,2,1)) 
+mod_fevd <- varp %>% fevd(n.ahead = 40)  
+mod_fevd %>% plot(addbars = 3)       
+ 
+ggfevd <- function(var_fevd, n.ahead = NULL) { 
+     
+    # arrange FEVD data into a tibble to be used with ggplot 
+    var_fevd_tbl <- 
+        var_fevd %>% 
+        modify_depth(1, as_tibble) %>% 
+        map_df(bind_rows, .id = "variable") %>% 
+        gather(shock, value, -variable) %>% 
+        group_by(shock, variable) %>% 
+        mutate(horizon = row_number()) %>% 
+        ungroup() %>%  
+       mutate(shock = recode(shock, dlOPHNFB = "technology", dlHOANBS = "demand")) 
+ 
+    if (!is.null(n.ahead)) var_fevd_tbl %<>% filter(horizon <= n.ahead) 
+     
+    # plot FEVD using ggplot 
+    g2 <- ggplot(data = var_fevd_tbl, aes(x = horizon, y = value, fill = shock)) + 
+        geom_col(position = position_stack(reverse = TRUE)) + 
+        scale_fill_manual(values = wesanderson::wes_palette("GrandBudapest1")[c(3, 2, 4, 1)]) + 
+        # scale_fill_manual(values = c("gray80", "gray60", "gray40", "gray20")) + 
+        labs(x = "horizon", y = "fraction of overall variance", title = "Short-Run Forecast Error Variance Decomposition") + 
+        facet_grid(variable ~ .) 
+    g2 
+} 
+mod_fevd %>% ggfevd() 
+mod_fevd %>% ggfevd() %>% ggplotly()  
+ 
+# long run 
+mod_svar %>% fevd(n.ahead = 40) %>% plot(addbars = 10)  
+ 
+# same as above, but using ggplot 
+mod_svar_fevd <- fevd(mod_svar, n.ahead = 40) 
+     
+# arrange FEVD data into a tibble to be used with ggplot 
+svar_fevd_tbl <- 
+    mod_svar_fevd %>% 
+    modify_depth(1, as_tibble) %>% 
+    map_df(bind_rows, .id = "variable") %>% 
+    gather(shock, value, -variable) %>% 
+    group_by(shock, variable) %>% 
+    mutate(horizon = row_number()) %>% 
+    ungroup() %>% 
+    mutate(shock = recode(shock, dlOPHNFB = "technology", dlHOANBS = "demand")) 
+ 
+# plot FEVD using ggplot 
+g1 <- ggplot(data = svar_fevd_tbl, aes(x = horizon, y = value, fill = shock)) + 
+    geom_col(position = position_stack(reverse = TRUE)) + 
+    scale_fill_manual(values = c("gray80", "gray40")) + 
+    labs(x = "horizon", y = "fraction of overall variance", title = "Long-Run Forecast Error Variance Decomposition") + 
+    facet_wrap(variable ~ ., ncol = 1) 
+g1 
+ggplotly(g1)  
+ 
+``` 
+Comments:1)In the short run: For the working hours(dlHOANBS), demand shock is more important, roughly 10% of the volatility of dlHOANBS is explained by the technology shock, and the remaining part 90% of the volatility of dlHOANBS is due to the technology shock.  
+           For the productivity(dlOPHNFB), technology shock is more important, roughly 90% of the volatility of dlOPHNFB is explained by the technology shock, and the remaining part of 10% of the volatility of dlOPHNFB is due to the demand shock.  
+          2) In the long run: For the working hours(dlHOANBS), demand shock is more important, roughly 16% of the volatility of dlHOANBS is explained by the technology shock, and the remaining part 84% of the volatility of dlHOANBS is due to the technology shock.  
+           For the productivity(dlOPHNFB), technology shock is more important, roughly 64% of the volatility of dlOPHNFB is explained by the technology shock, and the remaining part of 36% of the volatility of dlOPHNFB is due to the demand shock.  
