@@ -1,0 +1,145 @@
+---
+title: "Untitled"
+author: "Bitaran Jang maden"
+date: "May 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(magrittr)
+library(tidyquant)
+library(timetk)
+library(tibbletime)
+library(broom)
+library(ggplot2)
+library(ggfortify)
+library(forecast)
+library(Quandl)
+library(urca)
+library(vars)
+library(devtools)
+```
+a)
+
+```{r}
+MCOILWTICO <- tq_get(("MCOILWTICO"), get = "economic.data",
+           from  = "1995-01-01", to = "2017-12-31")
+
+GASREGCOVM<- tq_get(("GASREGCOVM"), get = "economic.data",
+           from  = "1995-01-01", to = "2017-12-31")
+
+MCOILWTICO_tbl <-
+   MCOILWTICO %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+GASREGCOVM_tbl<-
+  GASREGCOVM %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+
+# convert data into ts
+mcoilwtico_ts <-
+    MCOILWTICO_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 12)
+
+
+gasregcovm_ts <-
+    GASREGCOVM_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 12)
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+loil<-log(mcoilwtico_ts)
+lgas<- log(gasregcovm_ts)
+ts.plot(loil, lgas, gpars = list(col = c("black", "red")))
+```
+
+b) Unit root tests
+```{r}
+loil.ers <- ur.ers(loil, type="P-test", model="trend")
+summary(loil.ers)
+
+lgas.ers <- ur.ers(lgas, type="P-test", model="trend")
+summary(lgas.ers)
+#we fail to reject null hypothesis for both oil and gas (log transformed). Thus, we conclude that the time series have unit root.
+
+## First Differences of data:
+dloil <- diff(loil)
+dlgas <- diff(lgas)
+
+dloil.ers <- ur.ers(dloil, type="P-test", model="trend")
+summary(dloil.ers)
+
+
+dlgas.ers <- ur.ers(dlgas, type="P-test", model="trend")
+summary(dlgas.ers)
+
+#we  reject the null hypothesis.
+## Thus, Crude Oil Prices and Regular Conventional Gas Price are I(1).
+```
+
+```{r}
+## (c) Determining the Number of Lags:
+
+y <- cbind(loil, lgas)
+colnames(y) <- c("log.wti","log.gas")
+y <- na.trim(y)
+y.VAR.IC <- VARselect(y, type="const")
+
+nlags <- y.VAR.IC$selection["SC(n)"]
+nlags
+
+y <- window(y, start=1995+0, end=2010+11/12)
+y.CA <- ca.jo(y, ecdet="const", type="trace", K=nlags, spec="transitory")
+summary(y.CA)
+
+y.CA <- ca.jo(y, ecdet="const", type="eigen", K=nlags, spec="transitory")
+summary(y.CA)
+
+## We reject the null hypothesis. Thus, oil and gas prices are cointegrated.
+
+lttest(y.CA, r=1)
+
+```
+The test suggests case 2(restricted constant),
+ while the plots from (a) suggest Case 4(restricted trend).
+
+
+
+(e) Estimating a Bivariate VEC Model:
+```{r}
+
+y.VEC <- cajorls(y.CA, r=1)
+y.VEC
+```
+f) Statistical Significance of alpha1 and alpha2 in the Estimated VEC Model:
+```{r}
+summary(y.VEC$rlm)
+```
+
+We see that alpha1 is not significant, but alpha2 is significant. We also notice that alpha1 >0 and alpha2 >0
+Whenever there is a disruption, the signs of the adjustment parameters are consistent with the error correction mechanism.
+
+
+g)Reestimating the VEC model with a restriction alpha2 = 0:
+```{r}
+
+rest.alpha <- matrix(c(1,0), c(2,1))
+y.CA.ralpha <- alrtest(y.CA, A=rest.alpha, r=1)
+summary(y.CA.ralpha)
+```
+```
+(h) The Intuition for Imposing the Restriction in (f):
+
+ The restriction alpha2=0 means that the adjustment occurs by y1(oil price) only.
+ i.e. gas prices cannot affect oil prices.
