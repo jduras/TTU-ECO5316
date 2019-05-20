@@ -1,0 +1,261 @@
+---
+title: "HW 7&8"
+author: "Talal Alsabhan"
+date: "5/16/2019"
+output: html_document
+---
+
+```{r}
+library(timetk)
+library(tidyverse)
+library(tidyquant)
+library(qqplotr)
+library(forecast)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(ggfortify)
+library(tsibble)
+library(lubridate)
+library(zoo)
+library(vars)
+library(stargazer)
+library(listviewer)
+library(qqplotr)
+library(plotly)
+library(wesanderson)
+library(listviewer)
+```
+#HW7
+```{r}
+#a
+OPHNFB_raw <- tq_get("OPHNFB", get = "economic.data", from = "1947-01-01", to = "2017-12-31")
+  rY_tbl <-
+    OPHNFB_raw %>%
+  as_tibble() %>%
+  mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+  dplyr::select(c(yearq,price))
+  
+  rY_ts <-
+    rY_tbl %>%
+    tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+  log.rY <- log(rY_ts)
+  f.diff.rY <- diff( log(rY_ts), differences = 1)
+  
+  HOANBS_raw <- tq_get("HOANBS", get = "economic.data", from = "1947-01-01", to = "2017-12-31")  
+rH_tbl<-
+  HOANBS_raw %>%
+    as_tibble() %>%
+    mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+    dplyr::select(c(yearq,price))
+
+rH_ts <-
+  rH_tbl %>%
+  tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+log.rH <- log(rH_ts)
+f.diff.rH <- diff(log(rH_ts), differences = 1)
+```
+```{r}
+#b
+log.rY %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                 lag.max = 8) %>%
+  summary()
+```
+# WE reject the Null
+```{r}
+#b
+f.diff.rY %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                      lag.max = 4) %>%
+  summary()
+```
+# we fail to reject the Null
+```{r}
+#b
+log.rH %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                   lag.max = 4) %>%
+  summary()
+```
+
+# we reject the Null
+```{r}
+#b
+f.diff.rH %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+            lag.max = 4) %>%
+  summary()
+```
+#we fail to reject the Null
+```{r}
+#c
+
+y <- cbind(f.diff.rY,f.diff.rH)
+# estimate VAR(p) using AIC to select p
+varp <- VAR(y, ic = "AIC", lag.max = 8, type = "const")
+varp
+summary(varp)
+
+lmp <- varp$varresult
+
+stargazer(lmp,
+          type  ="text", column.labels = rep(colnames(y), 2),
+          dep.var.labels.include = FALSE)
+# plot residuals and their ACF and PACF
+plot(varp)
+
+y<- sweep(y, 2, apply(y,2,mean))
+myVar <- VAR(y, ic = "AIC", lag.max = 8)
+myVar
+summary(myVar)
+lmp1 <- myVar$varresult
+stargazer(lmp,
+          type  ="text", column.labels = rep(colnames(y), 2),
+          dep.var.labels.include = FALSE)
+```
+```{r}
+#d
+mySVAR <- BQ(myVar)
+mySVAR
+summary(mySVAR)
+```
+#e
+#The technology shock is increasing by 0.6574%  and decreasing by -0.003188%
+#The non-technology shock is increasing by 0.4464% and 0.6029% 
+#The long run technology shocks is increasing by 0.7164
+```{r}
+#f 
+irf <- irf(mySVAR, n.ahead=40, ci=.9, cumulative=TRUE)
+plot(irf, plot.type="multiple")
+```
+#e
+# I beleive the result here is quiet similar to Gali. However, I got a different peak point for the value and time.
+```{r}
+#h
+varp.fevd <- fevd(mySVAR, n.ahead = 20)
+varp.fevd[[1]][c(1,4,8,15),]
+varp.fevd[[2]][c(1,4,8,15),]
+plot(varp.fevd)
+plot(varp.fevd, addbars=8)
+```
+# in long and short run the fluctuations are explained by internal shochs and a part of it by the external shocks. I #believe the incentive of getting more profit is behind that.
+
+
+
+
+
+#HW8
+```{r}
+
+COP.Data <- tq_get("MCOILWTICO", get = "economic.data", from = "1995-01-01", to = "2017-12-31")
+COP_tbl <-
+  COP.Data %>%
+  as_tibble() %>%
+  mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+  dplyr::select(c(yearq,price))
+
+COP_ts <-
+  COP_tbl %>%
+  tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+log.COP <- log(COP_ts)
+f.diff.COP <- diff( log(COP_ts), differences = 1)
+
+
+RCGP.Data <- tq_get("GASREGCOVM", get = "economic.data", from = "1995-01-01", to = "2017-12-31")  
+RCGP_tbl<-
+  RCGP.Data %>%
+  as_tibble() %>%
+  mutate(yearq = as.yearqtr(date, format = "%Y:%q"))%>%
+  dplyr::select(c(yearq,price))
+
+RCGP_ts <-
+  RCGP_tbl %>%
+  tk_ts(select = -yearq, start = year(.$yearq[1]), frequency = 4)
+log.RCGP <- log(RCGP_ts)
+f.diff.RCGP <- diff(log(RCGP_ts), differences = 1)
+
+par(mar=c(1,1,1,1))
+plot(log.COP, type='l', main="The Log of Oil and Gas Prices from 1995 to 2017"
+     ,col="blue", ylim=c(-2, 5),
+     xlab= "Year", ylab="log of Price", colour='variable' )
+lines(log.RCGP, col="red")
+
+plot(f.diff.COP, type='l', main="Difference of the log of Oil and log of Gas from 1955 to 2017", col="blue",
+     ylim=c(-0.4, 0.4))
+lines(f.diff.RCGP, col="red")
+```
+```{r}
+#b
+log.COP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                   lag.max = 8) %>%
+  summary()
+f.diff.COP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                      lag.max = 8) %>%
+  summary()
+
+log.COP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                   lag.max = 8) %>%
+  summary()
+f.diff.COP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                      lag.max = 8) %>%
+  summary()
+
+log.RCGP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                   lag.max = 8) %>%
+  summary()
+f.diff.RCGP %>% ur.ers( type = c("DF-GLS", "P-test"), model = c( "trend"),
+                      lag.max = 8) %>%
+  summary()
+```
+
+```{r}
+#c
+c <- cbind(f.diff.COP,f.diff.RCGP)
+colnames(c) <- c("log.oil","log.gas")
+c <- na.trim(c)
+VAR.p <- VARselect(c, type="const")
+numlags <- VAR.p$selection["SC(n)"]
+numlags
+
+c <- window(c, start=1995+0, end=2017+12/12)
+c.1 <- ca.jo(c, ecdet="const", type="trace", K=numlags, spec="transitory")
+summary(c.1)
+c.2 <- ca.jo(c, ecdet="const", type="eigen", K=numlags, spec="transitory")
+summary(c.2)
+
+lttest(c.1, r=1)
+```
+
+```{r}
+#d
+restricted <- matrix(c(1,0), c(2,1))
+C1.restricted <- alrtest(c.2, A = restricted, r = 1)
+VEC.restricted <- cajorls(C1.restricted, r = 1)
+summary(VEC.restricted)
+```
+
+```{r}
+#e
+VEC <- cajorls(c.1, r=1)
+VEC
+```
+
+```{r}
+#f
+summary(VEC$rlm)
+```
+
+# α1 is not statistically significant while α2 is statistically significant. Therefore,there is distrubtion in the long 
+#run equilibrium 
+```{r}
+#g
+rest.alpha <- matrix(c(1,0), c(2,1))
+c1.rest.alpha <- alrtest(c.1, A=rest.alpha, r=1)
+summary(c1.rest.alpha)
+```
+
+```{r}
+#f
+summary(VEC$rlm)
+```
+# Gas price  has a pure random walk with all the adjustment occuring in oil price when α1 is not zero and α2=0
+
